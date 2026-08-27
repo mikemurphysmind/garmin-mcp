@@ -2,7 +2,6 @@ package cmd_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -54,7 +53,7 @@ func runToolsList(t *testing.T, args ...string) (stdout string, err error) {
 		Stderr:    &errOut,
 		Catalog:   testCatalog,
 	})
-	err = root.ExecuteContext(context.Background())
+	err = root.ExecuteContext(t.Context())
 	return out.String(), err
 }
 
@@ -214,7 +213,7 @@ func TestToolsListSeparatesRepeatableWritesFromRepeatableCreates(t *testing.T) {
 			}
 		},
 	})
-	if err := root.ExecuteContext(context.Background()); err != nil {
+	if err := root.ExecuteContext(t.Context()); err != nil {
 		t.Fatalf("tools list = %v, want the listing", err)
 	}
 
@@ -243,7 +242,7 @@ func TestToolsListReportsAToolThatHasNoTier(t *testing.T) {
 			return []cmd.ToolEntry{{Name: "fake_untiered_thing"}}
 		},
 	})
-	if err := root.ExecuteContext(context.Background()); err != nil {
+	if err := root.ExecuteContext(t.Context()); err != nil {
 		t.Fatalf("tools list = %v, want the listing", err)
 	}
 

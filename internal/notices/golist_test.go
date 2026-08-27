@@ -1,7 +1,6 @@
 package notices
 
 import (
-	"context"
 	"strings"
 	"testing"
 )
@@ -81,7 +80,7 @@ func TestParseModuleLinesRejectsAnIncompleteRecord(t *testing.T) {
 func TestLinkedModulesReportsTheSortedUnion(t *testing.T) {
 	requireResolvableModuleGraph(t)
 
-	mods, err := linkedModules(context.Background(), repoRoot)
+	mods, err := linkedModules(t.Context(), repoRoot)
 	if err != nil {
 		t.Fatalf("linkedModules: %v", err)
 	}

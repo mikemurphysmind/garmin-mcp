@@ -52,7 +52,7 @@ func TestAPanickingToolIsContainedAndTheServerKeepsServing(t *testing.T) {
 	}
 
 	server := newTestServer(t, deps)
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{

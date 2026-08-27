@@ -1,10 +1,11 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
 	"math"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -329,8 +330,7 @@ func parseISODate(value *string) *string {
 	if value == nil || *value == "" {
 		return nil
 	}
-	if index := strings.Index(*value, "T"); index >= 0 {
-		date := (*value)[:index]
+	if date, _, found := strings.Cut(*value, "T"); found {
 		return &date
 	}
 	return value
@@ -341,8 +341,8 @@ func parseISODate(value *string) *string {
 // (gear_management.py:132), which is the sort that survives after the interim
 // date-ordered sort before it is applied.
 func sortGearEntries(entries []GearEntry) {
-	sort.SliceStable(entries, func(i, j int) bool {
-		return gearSortKey(entries[i]) < gearSortKey(entries[j])
+	slices.SortStableFunc(entries, func(a, b GearEntry) int {
+		return cmp.Compare(gearSortKey(a), gearSortKey(b))
 	})
 }
 

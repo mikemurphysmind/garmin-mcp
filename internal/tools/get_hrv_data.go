@@ -54,8 +54,8 @@ type HRVData struct {
 	SleepEnd   string `json:"sleep_end,omitempty" jsonschema:"the local end of the sleep window"`
 
 	Readings          []HRVReading `json:"hrv_readings,omitempty" jsonschema:"the intraday series, when asked for"`
-	ReadingsCount     int          `json:"readings_count,omitempty" jsonschema:"how many readings Garmin sent"`
-	ReadingsTruncated bool         `json:"readings_truncated,omitempty" jsonschema:"whether the series was cut"`
+	ReadingsCount     int          `json:"readings_count,omitzero" jsonschema:"how many readings Garmin sent"`
+	ReadingsTruncated bool         `json:"readings_truncated,omitzero" jsonschema:"whether the series was cut"`
 }
 
 // LogValue reports the shape of the day and never a reading.

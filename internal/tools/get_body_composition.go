@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -221,9 +222,7 @@ func newBodyCompositionAverage(
 
 // resolveOptionalWindow validates a window whose end day defaults to its start day.
 func (s *service) resolveOptionalWindow(startValue, endValue string) (client.DateRange, error) {
-	if endValue == "" {
-		endValue = startValue
-	}
+	endValue = cmp.Or(endValue, startValue)
 	return parseWindow(startValue, endValue, s.limits)
 }
 

@@ -133,8 +133,8 @@ func TestReplaceSetsReportsAMismatchRatherThanSuccess(t *testing.T) {
 				t.Fatalf("ReplaceSets() = %v, want the mismatch reported", err)
 			}
 
-			var apiErr *client.APIError
-			if !errors.As(err, &apiErr) {
+			apiErr, ok := errors.AsType[*client.APIError](err)
+			if !ok {
 				t.Fatal("the mismatch is not an *APIError")
 			}
 			if apiErr.Op != client.OpSetActivityExerciseSets {

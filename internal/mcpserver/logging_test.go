@@ -1,7 +1,6 @@
 package mcpserver_test
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -16,7 +15,7 @@ func TestEveryToolCallIsLoggedOnceWithCoarseFields(t *testing.T) {
 	t.Parallel()
 
 	server, _, sink := tieredServer(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	if _, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -68,7 +67,7 @@ func TestExactToolNamesAreLoggedOnlyUnderTheDebugPolicy(t *testing.T) {
 		d.Logger = mustLogger(t, sink, mcplog.Config{DebugToolNames: true})
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 	if _, err := session.CallTool(ctx, &mcp.CallToolParams{
 		Name:      readTool,
@@ -87,7 +86,7 @@ func TestAPolicyRefusalIsLoggedAsADenial(t *testing.T) {
 	t.Parallel()
 
 	server, _, sink := tieredServer(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	if _, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -131,7 +130,7 @@ func TestARateLimitedCallIsLoggedAndPrecedesThePolicyGate(t *testing.T) {
 	}
 
 	server, _, sink := tieredServer(t, func(d *mcpserver.Deps) { d.Limiter = limiter })
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	args := map[string]any{textArg: testText}
@@ -167,7 +166,7 @@ func TestNonToolMethodsAreNotGatedAsToolCalls(t *testing.T) {
 	t.Parallel()
 
 	server, _, sink := tieredServer(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	if _, err := session.ListTools(ctx, &mcp.ListToolsParams{}); err != nil {

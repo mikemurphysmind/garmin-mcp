@@ -33,7 +33,7 @@ func seedRecordGrant(t *testing.T, s *store.SQLiteStore, clock *fakeClock,
 	familyID string, generation uint64,
 ) seededRecord {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, s)
 	client := seedClient(t, s)
 	key := store.ConsentKey{
@@ -77,7 +77,7 @@ func seedRecordGrant(t *testing.T, s *store.SQLiteStore, clock *fakeClock,
 func TestIssueTokenFamilyRecordKeepsTheCallerIdentity(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	record := seedRecordGrant(t, opened, clock, callerFamilyID, 4)
 
 	if record.familyID != callerFamilyID {
@@ -108,7 +108,7 @@ func TestIssueTokenFamilyRecordKeepsTheCallerIdentity(t *testing.T) {
 func TestIssueTokenFamilyRecordMintsOnlyWhenAsked(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	record := seedRecordGrant(t, opened, clock, "", 0)
 
 	if record.familyID == "" {
@@ -136,7 +136,7 @@ func TestIssueTokenFamilyRecordMintsOnlyWhenAsked(t *testing.T) {
 func TestIssueTokenFamilyRecordAcceptsNoScopeAndNoResource(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 	if err := opened.GrantConsentFor(ctx,
@@ -173,7 +173,7 @@ func TestIssueTokenFamilyRecordAcceptsNoScopeAndNoResource(t *testing.T) {
 func TestReadRefreshTokenReturnsAConsumedRecord(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	record := seedRecordGrant(t, opened, clock, callerFamilyID, 0)
 
 	next := rotation(record.refresh, "rotated-access", "rotated-refresh")
@@ -206,7 +206,7 @@ func TestReadRefreshTokenReturnsAConsumedRecord(t *testing.T) {
 func TestReadTokensRefuseUnknownAndRevokedMaterial(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	record := seedRecordGrant(t, opened, clock, callerFamilyID, 0)
 
 	if _, err := opened.ReadAccessToken(ctx, store.NewSecret("never-issued")); !errors.Is(
@@ -252,7 +252,7 @@ func readRefreshError(ctx context.Context, s *store.SQLiteStore, token store.Sec
 func TestReadAccessTokenReportsExpiryRatherThanEnforcingIt(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	record := seedRecordGrant(t, opened, clock, callerFamilyID, 0)
 
 	clock.advance(30 * time.Minute)

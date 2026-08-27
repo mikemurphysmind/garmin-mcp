@@ -1,7 +1,6 @@
 package oauthserver
 
 import (
-	"context"
 	"errors"
 	"net/url"
 	"sync"
@@ -18,8 +17,7 @@ func (h *harness) authenticated(t *testing.T, req AuthorizeRequest) (Secret, Tra
 	if err != nil {
 		t.Fatalf("BeginAuthorization: %v", err)
 	}
-	tx, err := h.srv.AttachPrincipal(
-		context.Background(), auth.Capability, mustPrincipal(t, testPrincipalID))
+	tx, err := h.srv.AttachPrincipal(t.Context(), auth.Capability, mustPrincipal(t, testPrincipalID))
 	if err != nil {
 		t.Fatalf("AttachPrincipal: %v", err)
 	}
@@ -33,7 +31,7 @@ func TestTransactionIsAddressedOnlyByItsCapability(t *testing.T) {
 		t.Fatalf("BeginAuthorization: %v", err)
 	}
 
-	if _, err := h.srv.Transaction(context.Background(), auth.Capability); err != nil {
+	if _, err := h.srv.Transaction(t.Context(), auth.Capability); err != nil {
 		t.Fatalf("Transaction: %v", err)
 	}
 
@@ -46,7 +44,7 @@ func TestTransactionIsAddressedOnlyByItsCapability(t *testing.T) {
 		"no capability":      {},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := h.srv.Transaction(context.Background(), capability)
+			_, err := h.srv.Transaction(t.Context(), capability)
 			if !errors.Is(err, ErrTransactionNotFound) {
 				t.Fatalf("Transaction error = %v, want ErrTransactionNotFound", err)
 			}
@@ -63,7 +61,7 @@ func TestTransactionExpiresAndBecomesUnusable(t *testing.T) {
 
 	h.advance(h.srv.TransactionTTL())
 
-	if _, err := h.srv.Transaction(context.Background(), auth.Capability); !errors.Is(
+	if _, err := h.srv.Transaction(t.Context(), auth.Capability); !errors.Is(
 		err, ErrTransactionExpired) {
 		t.Fatalf("Transaction error = %v, want ErrTransactionExpired", err)
 	}
@@ -86,8 +84,7 @@ func TestAttachPrincipalAdvancesTheTransactionExactlyOnce(t *testing.T) {
 		t.Fatal("the compare-and-set version was not advanced")
 	}
 
-	_, err := h.srv.AttachPrincipal(
-		context.Background(), capability, mustPrincipal(t, testPrincipalID))
+	_, err := h.srv.AttachPrincipal(t.Context(), capability, mustPrincipal(t, testPrincipalID))
 	if !errors.Is(err, ErrTransactionStage) {
 		t.Fatalf("a second AttachPrincipal error = %v, want ErrTransactionStage", err)
 	}
@@ -100,9 +97,7 @@ func TestAttachPrincipalRefusesAZeroPrincipal(t *testing.T) {
 		t.Fatalf("BeginAuthorization: %v", err)
 	}
 
-	if _, err := h.srv.AttachPrincipal(
-		context.Background(), auth.Capability, identityZeroPrincipal(),
-	); err == nil {
+	if _, err := h.srv.AttachPrincipal(t.Context(), auth.Capability, identityZeroPrincipal()); err == nil {
 		t.Fatal("AttachPrincipal accepted the zero principal")
 	}
 	if h.store.transactionCount() != 1 {
@@ -114,13 +109,13 @@ func TestGrantConsentIssuesACodeBoundToEverything(t *testing.T) {
 	h := newHarness(t)
 	capability, tx := h.authenticated(t, validAuthorizeRequest())
 
-	completion, err := h.srv.GrantConsent(context.Background(), capability)
+	completion, err := h.srv.GrantConsent(t.Context(), capability)
 	if err != nil {
 		t.Fatalf("GrantConsent: %v", err)
 	}
 
 	code := assertRedirectCarriesCode(t, completion.RedirectTo)
-	stored, err := h.store.ConsumeCode(context.Background(), SecretFromString(code).Lookup())
+	stored, err := h.store.ConsumeCode(t.Context(), SecretFromString(code).Lookup())
 	if err != nil {
 		t.Fatalf("the issued code is not stored under its digest: %v", err)
 	}
@@ -180,7 +175,7 @@ func TestGrantConsentRequiresAResolvedPrincipal(t *testing.T) {
 		t.Fatalf("BeginAuthorization: %v", err)
 	}
 
-	if _, err := h.srv.GrantConsent(context.Background(), auth.Capability); !errors.Is(
+	if _, err := h.srv.GrantConsent(t.Context(), auth.Capability); !errors.Is(
 		err, ErrTransactionStage) {
 		t.Fatalf("GrantConsent error = %v, want ErrTransactionStage", err)
 	}
@@ -193,10 +188,10 @@ func TestGrantConsentIsSingleUse(t *testing.T) {
 	h := newHarness(t)
 	capability, _ := h.authenticated(t, validAuthorizeRequest())
 
-	if _, err := h.srv.GrantConsent(context.Background(), capability); err != nil {
+	if _, err := h.srv.GrantConsent(t.Context(), capability); err != nil {
 		t.Fatalf("GrantConsent: %v", err)
 	}
-	if _, err := h.srv.GrantConsent(context.Background(), capability); !errors.Is(
+	if _, err := h.srv.GrantConsent(t.Context(), capability); !errors.Is(
 		err, ErrTransactionNotFound) {
 		t.Fatalf("a replayed GrantConsent error = %v, want ErrTransactionNotFound", err)
 	}
@@ -210,7 +205,7 @@ func TestGrantConsentUnderRaceCompletesExactlyOnce(t *testing.T) {
 	results := make([]error, 8)
 	for i := range results {
 		wg.Go(func() {
-			_, results[i] = h.srv.GrantConsent(context.Background(), capability)
+			_, results[i] = h.srv.GrantConsent(t.Context(), capability)
 		})
 	}
 	wg.Wait()
@@ -237,14 +232,14 @@ func TestConsentRequiredIsTheConfusedDeputyMitigation(t *testing.T) {
 	first := validAuthorizeRequest()
 	first.Scope = testScopeProfile
 	capability, _ := h.authenticated(t, first)
-	required, err := h.srv.ConsentRequired(context.Background(), capability)
+	required, err := h.srv.ConsentRequired(t.Context(), capability)
 	if err != nil {
 		t.Fatalf("ConsentRequired: %v", err)
 	}
 	if !required {
 		t.Fatal("the first authorization for a client must require consent")
 	}
-	if _, err := h.srv.GrantConsent(context.Background(), capability); err != nil {
+	if _, err := h.srv.GrantConsent(t.Context(), capability); err != nil {
 		t.Fatalf("GrantConsent: %v", err)
 	}
 
@@ -272,7 +267,7 @@ func TestConsentRequiredIsTheConfusedDeputyMitigation(t *testing.T) {
 			tc.mutate(&req)
 			capability, _ := h.authenticated(t, req)
 
-			required, err := h.srv.ConsentRequired(context.Background(), capability)
+			required, err := h.srv.ConsentRequired(t.Context(), capability)
 			if err != nil {
 				t.Fatalf("ConsentRequired: %v", err)
 			}
@@ -286,7 +281,7 @@ func TestConsentRequiredIsTheConfusedDeputyMitigation(t *testing.T) {
 func TestConsentRequiredIsBoundToThePrincipal(t *testing.T) {
 	h := newHarness(t)
 	capability, _ := h.authenticated(t, validAuthorizeRequest())
-	if _, err := h.srv.GrantConsent(context.Background(), capability); err != nil {
+	if _, err := h.srv.GrantConsent(t.Context(), capability); err != nil {
 		t.Fatalf("GrantConsent: %v", err)
 	}
 
@@ -295,11 +290,11 @@ func TestConsentRequiredIsBoundToThePrincipal(t *testing.T) {
 		t.Fatalf("BeginAuthorization: %v", err)
 	}
 	other := mustPrincipal(t, "99999999-0000-0000-0000-000000000000")
-	if _, err := h.srv.AttachPrincipal(context.Background(), auth.Capability, other); err != nil {
+	if _, err := h.srv.AttachPrincipal(t.Context(), auth.Capability, other); err != nil {
 		t.Fatalf("AttachPrincipal: %v", err)
 	}
 
-	required, err := h.srv.ConsentRequired(context.Background(), auth.Capability)
+	required, err := h.srv.ConsentRequired(t.Context(), auth.Capability)
 	if err != nil {
 		t.Fatalf("ConsentRequired: %v", err)
 	}
@@ -315,7 +310,7 @@ func TestConsentRequiredNeedsAResolvedPrincipal(t *testing.T) {
 		t.Fatalf("BeginAuthorization: %v", err)
 	}
 
-	if _, err := h.srv.ConsentRequired(context.Background(), auth.Capability); !errors.Is(
+	if _, err := h.srv.ConsentRequired(t.Context(), auth.Capability); !errors.Is(
 		err, ErrTransactionStage) {
 		t.Fatalf("ConsentRequired error = %v, want ErrTransactionStage", err)
 	}
@@ -325,7 +320,7 @@ func TestDenyAuthorizationRedirectsAccessDeniedAndDiscardsEverything(t *testing.
 	h := newHarness(t)
 	capability, _ := h.authenticated(t, validAuthorizeRequest())
 
-	completion, err := h.srv.DenyAuthorization(context.Background(), capability)
+	completion, err := h.srv.DenyAuthorization(t.Context(), capability)
 	if err != nil {
 		t.Fatalf("DenyAuthorization: %v", err)
 	}
@@ -358,7 +353,7 @@ func TestGrantConsentOnAnExpiredTransactionIssuesNothing(t *testing.T) {
 
 	h.advance(h.srv.TransactionTTL())
 
-	if _, err := h.srv.GrantConsent(context.Background(), capability); !errors.Is(
+	if _, err := h.srv.GrantConsent(t.Context(), capability); !errors.Is(
 		err, ErrTransactionExpired) {
 		t.Fatalf("GrantConsent error = %v, want ErrTransactionExpired", err)
 	}

@@ -1,7 +1,6 @@
 package mcpserver_test
 
 import (
-	"context"
 	"errors"
 	"slices"
 	"testing"
@@ -67,7 +66,7 @@ func TestAResourceIsListedAndReadOverASession(t *testing.T) {
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, withResource(testResourceURI, testResourceBody))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	listed, err := session.ListResources(ctx, &mcp.ListResourcesParams{})
@@ -103,7 +102,7 @@ func TestAnUnknownResourceIsRefused(t *testing.T) {
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, withResource(testResourceURI, testResourceBody))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	if _, err := session.ReadResource(ctx, &mcp.ReadResourceParams{
@@ -230,7 +229,7 @@ func TestAResourceBodyIsRenderedOnce(t *testing.T) {
 	server, _, _ := tieredServer(t, func(d *mcpserver.Deps) {
 		d.ResourceRegistrars = []mcpserver.ResourceRegistrar{counting}
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	for range 3 {

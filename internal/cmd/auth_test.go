@@ -15,7 +15,7 @@ import (
 func runAuth(t *testing.T, timeout time.Duration, args ...string) (stdout, stderr string, code int) {
 	t.Helper()
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(t.Context(), timeout)
 	defer cancel()
 
 	var out, errOut bytes.Buffer

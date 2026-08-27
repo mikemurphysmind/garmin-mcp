@@ -3,6 +3,7 @@ package loginweb_test
 import (
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -156,25 +157,15 @@ func assertFormAction(t *testing.T, policy string, wantSources ...string) {
 	if !ok {
 		t.Fatalf("Content-Security-Policy %q has no form-action directive", policy)
 	}
-	rest := after
-	end := strings.Index(rest, ";")
-	if end == -1 {
-		end = len(rest)
-	}
-	directive := strings.TrimSpace(rest[:end])
+	head, _, _ := strings.Cut(after, ";")
+	directive := strings.TrimSpace(head)
 	sources := strings.Fields(directive)
 
 	if len(sources) != len(wantSources) {
 		t.Fatalf("form-action = %q, want exactly %v", directive, wantSources)
 	}
 	for _, want := range wantSources {
-		found := false
-		for _, got := range sources {
-			if got == want {
-				found = true
-			}
-		}
-		if !found {
+		if !slices.Contains(sources, want) {
 			t.Errorf("form-action = %q, missing %q", directive, want)
 		}
 	}

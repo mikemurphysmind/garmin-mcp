@@ -25,8 +25,8 @@ func TestDoParsesRetryAfter(t *testing.T) {
 
 	_, err := newTestClient(t, client.Limits{}).Do(t.Context(), mustSession(t, caller), profileRequest())
 
-	var apiErr *client.APIError
-	if !errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[*client.APIError](err)
+	if !ok {
 		t.Fatalf("Do() = %v, want an *APIError", err)
 	}
 	if apiErr.RetryAfter != 7*time.Second {

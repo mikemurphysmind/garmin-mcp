@@ -1,7 +1,6 @@
 package api_test
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -116,15 +115,15 @@ func TestTrainingScoresRangeReadsSendTheUpperCaseSport(t *testing.T) {
 	}{
 		"speed": {client.PathLactateThresholdSpeedRangePrefix,
 			func(s *api.TrainingScores, h harness, span client.DateRange) ([]api.ThresholdSample, error) {
-				return s.LactateThresholdSpeedRange(context.Background(), h.session, span)
+				return s.LactateThresholdSpeedRange(t.Context(), h.session, span)
 			}},
 		"heart rate": {client.PathLactateThresholdHeartRateRangePrefix,
 			func(s *api.TrainingScores, h harness, span client.DateRange) ([]api.ThresholdSample, error) {
-				return s.LactateThresholdHeartRateRange(context.Background(), h.session, span)
+				return s.LactateThresholdHeartRateRange(t.Context(), h.session, span)
 			}},
 		"power": {client.PathFunctionalThresholdPowerRangePrefix,
 			func(s *api.TrainingScores, h harness, span client.DateRange) ([]api.ThresholdSample, error) {
-				return s.FunctionalThresholdPowerRange(context.Background(), h.session, span)
+				return s.FunctionalThresholdPowerRange(t.Context(), h.session, span)
 			}},
 	}
 

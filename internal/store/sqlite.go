@@ -24,8 +24,8 @@ const sqliteBusyCode = 5
 // isBusyError reports whether err is the driver's own SQLITE_BUSY, unwrapping
 // through any wrapping database/sql or this package has already applied.
 func isBusyError(err error) bool {
-	var sqliteErr *sqlite.Error
-	return errors.As(err, &sqliteErr) && sqliteErr.Code() == sqliteBusyCode
+	sqliteErr, ok := errors.AsType[*sqlite.Error](err)
+	return ok && sqliteErr.Code() == sqliteBusyCode
 }
 
 // wrapSQLError translates a database-boundary failure, naming ErrDatabaseBusy

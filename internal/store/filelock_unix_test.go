@@ -31,7 +31,7 @@ func TestLockRecordRefusesASymlinkedLockFile(t *testing.T) {
 		t.Fatalf("plant symlinked lock file: %v", err)
 	}
 
-	if _, err := lockRecord(context.Background(), lockPath); err == nil {
+	if _, err := lockRecord(t.Context(), lockPath); err == nil {
 		t.Fatal("lockRecord followed a symlinked lock path, want it refused")
 	} else if !errors.Is(err, securefile.ErrInsecurePath) {
 		t.Fatalf("lockRecord on a symlinked lock path: err = %v, want it to wrap securefile.ErrInsecurePath", err)
@@ -46,7 +46,7 @@ func TestLockRecordReturnsPromptlyForAnAlreadyCancelledContext(t *testing.T) {
 	dir := tempDir(t)
 	lockPath := filepath.Join(dir, "record.json.lock")
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	if _, err := lockRecord(ctx, lockPath); !errors.Is(err, context.Canceled) {
@@ -63,13 +63,13 @@ func TestLockRecordReturnsPromptlyWhenCancelledWhileContended(t *testing.T) {
 	dir := tempDir(t)
 	lockPath := filepath.Join(dir, "record.json.lock")
 
-	held, err := lockRecord(context.Background(), lockPath)
+	held, err := lockRecord(t.Context(), lockPath)
 	if err != nil {
 		t.Fatalf("take the record lock: %v", err)
 	}
 	defer func() { _ = held.release() }()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 
 	// The call runs in a goroutine and the result arrives on a channel, rather

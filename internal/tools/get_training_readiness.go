@@ -174,6 +174,5 @@ func recoveryHours(minutes client.Number) *float64 {
 	if !ok {
 		return nil
 	}
-	hours := math.Round(value/minutesPerHour*10) / 10
-	return &hours
+	return new(math.Round(value/minutesPerHour*10) / 10)
 }

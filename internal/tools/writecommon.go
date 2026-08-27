@@ -120,7 +120,7 @@ func (s *service) resolveActivityWrite(ctx context.Context, raw any) (activityWr
 type BatchOutcome struct {
 	ID      int64  `json:"id" jsonschema:"the identifier this item named"`
 	Applied bool   `json:"applied" jsonschema:"whether Garmin accepted this item"`
-	Status  int    `json:"status,omitempty" jsonschema:"the HTTP status Garmin answered with"`
+	Status  int    `json:"status,omitzero" jsonschema:"the HTTP status Garmin answered with"`
 	Advice  string `json:"advice,omitempty" jsonschema:"why this item was not applied"`
 }
 

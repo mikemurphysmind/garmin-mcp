@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -46,7 +45,7 @@ func electWinner(t *testing.T, results []outcome) outcome {
 // read-modify-write around one record must not interleave.
 func TestConcurrentRotatedWritesElectOneWinner(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	base, err := store.Save(ctx, testPrincipal, newTestTokens(), 0)
 	if err != nil {
@@ -88,7 +87,7 @@ func TestConcurrentRotatedWritesElectOneWinner(t *testing.T) {
 // reader sees either the previous record or the new one, never a partial file.
 func TestConcurrentReadersAndWriterNeverSeeATornRecord(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	version, err := store.Save(ctx, testPrincipal, newTestTokens(), 0)
 	if err != nil {
@@ -131,7 +130,7 @@ func TestConcurrentReadersAndWriterNeverSeeATornRecord(t *testing.T) {
 // principal, not global: two principals commit independently.
 func TestSeparatePrincipalsDoNotBlockEachOther(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principals := []string{testPrincipal, testOther}
 
 	var group sync.WaitGroup

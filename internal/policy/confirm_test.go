@@ -34,7 +34,7 @@ func TestRequireConfirmationAcceptsAnAffirmativeConfirmation(t *testing.T) {
 		return nil
 	})
 
-	if err := policy.RequireConfirmation(context.Background(), confirmer, destructiveRequest()); err != nil {
+	if err := policy.RequireConfirmation(t.Context(), confirmer, destructiveRequest()); err != nil {
 		t.Fatalf("RequireConfirmation returned error for an accepted confirmation: %v", err)
 	}
 	if seen.Tool != destructiveTool {
@@ -50,7 +50,7 @@ func TestRequireConfirmationAcceptsAnAffirmativeConfirmation(t *testing.T) {
 func TestRequireConfirmationFailsClosedWhenUnsupported(t *testing.T) {
 	t.Parallel()
 
-	err := policy.RequireConfirmation(context.Background(), nil, destructiveRequest())
+	err := policy.RequireConfirmation(t.Context(), nil, destructiveRequest())
 	if !errors.Is(err, policy.ErrConfirmationUnsupported) {
 		t.Fatalf("RequireConfirmation(nil confirmer) error = %v, want ErrConfirmationUnsupported", err)
 	}
@@ -67,7 +67,7 @@ func TestRequireConfirmationFailsClosedWhenTheClientReportsNoSupport(t *testing.
 		return policy.ErrConfirmationUnsupported
 	})
 
-	err := policy.RequireConfirmation(context.Background(), confirmer, destructiveRequest())
+	err := policy.RequireConfirmation(t.Context(), confirmer, destructiveRequest())
 	if !errors.Is(err, policy.ErrConfirmationUnsupported) {
 		t.Fatalf("error = %v, want ErrConfirmationUnsupported", err)
 	}
@@ -81,7 +81,7 @@ func TestRequireConfirmationFailsClosedWhenDeclined(t *testing.T) {
 		return policy.ErrConfirmationDeclined
 	})
 
-	err := policy.RequireConfirmation(context.Background(), confirmer, destructiveRequest())
+	err := policy.RequireConfirmation(t.Context(), confirmer, destructiveRequest())
 	if !errors.Is(err, policy.ErrConfirmationDeclined) {
 		t.Fatalf("error = %v, want ErrConfirmationDeclined", err)
 	}
@@ -98,7 +98,7 @@ func TestRequireConfirmationFailsClosedWhenTimedOut(t *testing.T) {
 		return policy.ErrConfirmationTimedOut
 	})
 
-	err := policy.RequireConfirmation(context.Background(), confirmer, destructiveRequest())
+	err := policy.RequireConfirmation(t.Context(), confirmer, destructiveRequest())
 	if !errors.Is(err, policy.ErrConfirmationTimedOut) {
 		t.Fatalf("error = %v, want ErrConfirmationTimedOut", err)
 	}
@@ -115,7 +115,7 @@ func TestRequireConfirmationTranslatesADeadlineIntoATimeout(t *testing.T) {
 		return ctx.Err()
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
 	defer cancel()
 
 	err := policy.RequireConfirmation(ctx, confirmer, destructiveRequest())
@@ -133,7 +133,7 @@ func TestRequireConfirmationTreatsCancellationAsAFailureToConfirm(t *testing.T) 
 		return ctx.Err()
 	})
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	err := policy.RequireConfirmation(ctx, confirmer, destructiveRequest())
@@ -152,7 +152,7 @@ func TestRequireConfirmationFailsClosedOnAnUnclassifiedError(t *testing.T) {
 		return errors.New("session write failed: bearer abc123")
 	})
 
-	err := policy.RequireConfirmation(context.Background(), confirmer, destructiveRequest())
+	err := policy.RequireConfirmation(t.Context(), confirmer, destructiveRequest())
 	if !errors.Is(err, policy.ErrConfirmationUnavailable) {
 		t.Fatalf("error = %v, want ErrConfirmationUnavailable", err)
 	}
@@ -172,7 +172,7 @@ func TestRequireConfirmationRejectsANonDestructiveRequest(t *testing.T) {
 
 	confirmer := confirmerFunc(func(context.Context, policy.ConfirmationRequest) error { return nil })
 
-	err := policy.RequireConfirmation(context.Background(), confirmer, req)
+	err := policy.RequireConfirmation(t.Context(), confirmer, req)
 	if !errors.Is(err, policy.ErrConfirmationNotApplicable) {
 		t.Fatalf("error = %v, want ErrConfirmationNotApplicable", err)
 	}

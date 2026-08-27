@@ -75,8 +75,8 @@ func (c *Client) retryDelay(req Request, attempt int, err error) (time.Duration,
 		return 0, false
 	}
 
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) || !apiErr.Retryable() {
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok || !apiErr.Retryable() {
 		return 0, false
 	}
 	if apiErr.Status != 0 && !isRetryableServerStatus(apiErr.Status) {
@@ -173,11 +173,8 @@ func transportKind(err error) Kind {
 		return KindTemporaryConnection
 	}
 
-	var netErr net.Error
-	var opErr *net.OpError
-	var dnsErr *net.DNSError
 	switch {
-	case errors.As(err, &netErr), errors.As(err, &opErr), errors.As(err, &dnsErr):
+	case isType[net.Error](err), isType[*net.OpError](err), isType[*net.DNSError](err):
 		return KindTemporaryConnection
 	}
 	if isSyscallTransportError(err) {
@@ -237,4 +234,10 @@ func readBounded(reader io.Reader, limit int64) ([]byte, error) {
 		return nil, fmt.Errorf("garmin api: response over its bound: %w", ErrResponseTooLarge)
 	}
 	return read, nil
+}
+
+// isType reports whether err's tree holds an error of type E.
+func isType[E error](err error) bool {
+	_, ok := errors.AsType[E](err)
+	return ok
 }

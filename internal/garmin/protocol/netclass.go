@@ -44,20 +44,19 @@ func networkCategory(err error) (string, bool) {
 		return category, true
 	}
 
-	var netErr net.Error
-	if errors.As(err, &netErr) && netErr.Timeout() {
+	if netErr, ok := errors.AsType[net.Error](err); ok && netErr.Timeout() {
 		return categoryTimeout, true
 	}
 
-	if _, ok := errors.AsType[*net.OpError](err); ok {
+	if isType[*net.OpError](err) {
 		return categoryNetFailure, true
 	}
 	return "", false
 }
 
 func dnsCategory(err error) (string, bool) {
-	var dnsErr *net.DNSError
-	if !errors.As(err, &dnsErr) {
+	dnsErr, ok := errors.AsType[*net.DNSError](err)
+	if !ok {
 		return "", false
 	}
 	switch {
@@ -75,20 +74,16 @@ func dnsCategory(err error) (string, bool) {
 // the peer. Certificate errors name the rejected host, so none of their text is
 // rendered.
 func tlsCategory(err error) (string, bool) {
-	var certErr *tls.CertificateVerificationError
-	var unknownAuthority x509.UnknownAuthorityError
-	var hostnameErr x509.HostnameError
-	var invalidErr x509.CertificateInvalidError
 	switch {
-	case errors.As(err, &certErr), errors.As(err, &unknownAuthority),
-		errors.As(err, &hostnameErr), errors.As(err, &invalidErr):
+	case isType[*tls.CertificateVerificationError](err),
+		isType[x509.UnknownAuthorityError](err),
+		isType[x509.HostnameError](err),
+		isType[x509.CertificateInvalidError](err):
 		return categoryTLSCertVerify, true
 	}
 
-	var recordErr tls.RecordHeaderError
-	var alertErr tls.AlertError
 	switch {
-	case errors.As(err, &recordErr), errors.As(err, &alertErr):
+	case isType[tls.RecordHeaderError](err), isType[tls.AlertError](err):
 		return categoryTLSHandshake, true
 	}
 	return "", false
@@ -105,4 +100,10 @@ func syscallCategory(err error) (string, bool) {
 	default:
 		return "", false
 	}
+}
+
+// isType reports whether err's tree holds an error of type E.
+func isType[E error](err error) bool {
+	_, ok := errors.AsType[E](err)
+	return ok
 }

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"fmt"
@@ -186,9 +187,7 @@ func (s *SQLiteStore) AuditEvents(ctx context.Context, limit int) ([]AuditEvent,
 		return nil, fmt.Errorf("store: audit page size %d is outside [0, %d]: %w",
 			limit, maxAuditPageSize, ErrInvalidArgument)
 	}
-	if limit == 0 {
-		limit = maxAuditPageSize
-	}
+	limit = cmp.Or(limit, maxAuditPageSize)
 
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT occurred_at, kind, outcome, principal_id, client_id, detail

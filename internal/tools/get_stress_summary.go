@@ -125,6 +125,5 @@ func sharePercent(count, total int) *float64 {
 	if total <= 0 {
 		return nil
 	}
-	value := math.Round(float64(count)/float64(total)*1000) / 10
-	return &value
+	return new(math.Round(float64(count)/float64(total)*1000) / 10)
 }

@@ -2,7 +2,6 @@ package notices
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,7 +42,7 @@ var noticesPath = filepath.Join(repoRoot, "THIRD_PARTY_NOTICES.md")
 func TestCheckedInNoticesMatchTheGeneratedFile(t *testing.T) {
 	requireResolvableModuleGraph(t)
 
-	generated, err := Generate(context.Background(), Options{Dir: repoRoot})
+	generated, err := Generate(t.Context(), Options{Dir: repoRoot})
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -71,7 +70,7 @@ func TestCheckedInNoticesMatchTheGeneratedFile(t *testing.T) {
 func TestGenerateIsDeterministic(t *testing.T) {
 	requireResolvableModuleGraph(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	first, err := Generate(ctx, Options{Dir: repoRoot})
 	if err != nil {
@@ -95,7 +94,7 @@ func TestGenerateIsDeterministic(t *testing.T) {
 func TestGeneratedNoticesCarryNoAbsolutePath(t *testing.T) {
 	requireResolvableModuleGraph(t)
 
-	generated, err := Generate(context.Background(), Options{Dir: repoRoot})
+	generated, err := Generate(t.Context(), Options{Dir: repoRoot})
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}

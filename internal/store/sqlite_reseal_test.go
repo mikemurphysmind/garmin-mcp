@@ -30,7 +30,7 @@ func openStoreWithKeys(
 	t *testing.T, path string, active cryptostore.Key, retired []cryptostore.Key,
 ) *store.SQLiteStore {
 	t.Helper()
-	opened, err := store.OpenSQLite(context.Background(), store.SQLiteConfig{
+	opened, err := store.OpenSQLite(t.Context(), store.SQLiteConfig{
 		Path:        path,
 		Key:         active,
 		RetiredKeys: retired,
@@ -75,7 +75,7 @@ func TestReadingARecordStillUnderARetiredKeyDuringTheWindow(t *testing.T) {
 	oldKey := mustGenerateKey(t, 1)
 
 	seed := openStoreWithKeys(t, path, oldKey, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, seed)
 	if _, err := seed.Save(ctx, principal.ID, newSQLTestTokens(), 0); err != nil {
 		t.Fatalf("seed Save: %v", err)
@@ -113,7 +113,7 @@ func TestReadingARecordFailsClosedWhenNoConfiguredKeyOpensIt(t *testing.T) {
 	oldKey := mustGenerateKey(t, 1)
 
 	seed := openStoreWithKeys(t, path, oldKey, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, seed)
 	if _, err := seed.Save(ctx, principal.ID, newSQLTestTokens(), 0); err != nil {
 		t.Fatalf("seed Save: %v", err)
@@ -148,7 +148,7 @@ func TestReadingAGarminTokenSetFailsClosedWhenNoConfiguredKeyOpensIt(t *testing.
 	firstKey := mustGenerateKey(t, 1)
 
 	seed := openStoreWithKeys(t, path, firstKey, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, seed)
 
 	strayKey := mustGenerateKey(t, 99)
@@ -198,7 +198,7 @@ func TestResealResumesWithoutDoubleSealing(t *testing.T) {
 	oldKey := mustGenerateKey(t, 1)
 
 	seed := openStoreWithKeys(t, path, oldKey, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, seed)
 	if _, err := seed.Save(ctx, principal.ID, newSQLTestTokens(), 0); err != nil {
 		t.Fatalf("seed Save: %v", err)
@@ -286,7 +286,7 @@ func TestResealReconcilesAStaleKeyVersionColumnWithoutLoopingForever(t *testing.
 	oldKey := mustGenerateKey(t, 1)
 
 	seed := openStoreWithKeys(t, path, oldKey, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, seed)
 	if _, err := seed.Save(ctx, principal.ID, newSQLTestTokens(), 0); err != nil {
 		t.Fatalf("seed Save: %v", err)
@@ -308,7 +308,7 @@ func TestResealReconcilesAStaleKeyVersionColumnWithoutLoopingForever(t *testing.
 
 	rotating := openStoreWithKeys(t, path, targetKey, []cryptostore.Key{oldKey})
 
-	resealCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	resealCtx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	report, err := rotating.ResealToActiveKey(resealCtx)
 	if err != nil {
@@ -341,7 +341,7 @@ func TestResealCatchesContentSealedUnderARetiredKeyWhenTheColumnClaimsActive(t *
 	oldKey := mustGenerateKey(t, 1)
 
 	seed := openStoreWithKeys(t, path, oldKey, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, seed)
 	if _, err := seed.Save(ctx, principal.ID, newSQLTestTokens(), 0); err != nil {
 		t.Fatalf("seed Save: %v", err)

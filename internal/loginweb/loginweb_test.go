@@ -343,7 +343,7 @@ func TestServeBindsLoopbackOnlyAndStopsWhenTheTransactionEnds(t *testing.T) {
 		t.Errorf("LoopbackURL = %q, want a loopback URL", endpoint)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 	defer cancel()
 
 	served := make(chan error, 1)
@@ -375,7 +375,7 @@ func TestServeStopsWhenTheContextIsCancelled(t *testing.T) {
 		t.Fatalf("ListenLoopback returned error: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	served := make(chan error, 1)
 	go func() { served <- server.Serve(ctx, listener) }()
 	cancel()

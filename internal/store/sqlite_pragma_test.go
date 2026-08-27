@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -17,7 +16,7 @@ import (
 
 func TestOpenDatabaseAppliesWALForeignKeysAndBusyTimeout(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	db := newTestDB(t)
 
 	state, err := store.Pragmas(ctx, db)
@@ -43,7 +42,7 @@ func TestOpenDatabaseAppliesWALForeignKeysAndBusyTimeout(t *testing.T) {
 // that call; every later connection the pool opens would run with foreign keys off.
 func TestEveryPooledConnectionCarriesThePragmas(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	db := newTestDB(t)
 
 	const connections = 4
@@ -107,7 +106,7 @@ func TestOpenDatabaseHonorsAConfiguredBusyTimeout(t *testing.T) {
 		}
 	})
 
-	state, err := store.Pragmas(context.Background(), db)
+	state, err := store.Pragmas(t.Context(), db)
 	if err != nil {
 		t.Fatalf("Pragmas: %v", err)
 	}
@@ -156,7 +155,7 @@ func TestOpenDatabaseRefusesBadConfiguration(t *testing.T) {
 func TestStorePragmasAndVersions(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if got := opened.SchemaVersion(); got < 1 {
 		t.Errorf("SchemaVersion() = %d, want at least 1", got)
@@ -183,7 +182,7 @@ func TestStorePragmasAndVersions(t *testing.T) {
 func TestForeignKeysAreEnforcedInPractice(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := opened.Save(ctx, testUnknownID, newSQLTestTokens(), 0)
 	if !errors.Is(err, store.ErrPrincipalNotFound) {

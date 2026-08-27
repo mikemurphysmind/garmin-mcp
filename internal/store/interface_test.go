@@ -36,7 +36,7 @@ var _ tokenStore = (*FileStore)(nil)
 func TestFileStoreSatisfiesTheConsumerInterface(t *testing.T) {
 	concrete, _ := newTestStore(t)
 	var iface tokenStore = concrete
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Exercise all three methods through the interface, so the assertion covers
 	// behavior and not only the method set.

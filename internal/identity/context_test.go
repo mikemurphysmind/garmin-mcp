@@ -16,7 +16,7 @@ func TestFromContextReturnsThePrincipalTheServerResolved(t *testing.T) {
 		t.Fatalf("NewPrincipal returned error: %v", err)
 	}
 
-	ctx := identity.WithPrincipal(context.Background(), want)
+	ctx := identity.WithPrincipal(t.Context(), want)
 
 	got, err := identity.FromContext(ctx)
 	if err != nil {
@@ -30,9 +30,9 @@ func TestFromContextReturnsThePrincipalTheServerResolved(t *testing.T) {
 func TestFromContextRefusesAnUnresolvedContext(t *testing.T) {
 	t.Parallel()
 
-	got, err := identity.FromContext(context.Background())
+	got, err := identity.FromContext(t.Context())
 	if !errors.Is(err, identity.ErrNoPrincipal) {
-		t.Fatalf("FromContext(background) error = %v, want ErrNoPrincipal", err)
+		t.Fatalf("FromContext on an unresolved context: error = %v, want ErrNoPrincipal", err)
 	}
 	if got.IsValid() {
 		t.Fatal("FromContext must not fall back to a default principal")
@@ -43,7 +43,7 @@ func TestWithPrincipalRefusesAnInvalidPrincipal(t *testing.T) {
 	t.Parallel()
 
 	var zero identity.Principal
-	ctx := identity.WithPrincipal(context.Background(), zero)
+	ctx := identity.WithPrincipal(t.Context(), zero)
 
 	if _, err := identity.FromContext(ctx); !errors.Is(err, identity.ErrNoPrincipal) {
 		t.Fatalf("FromContext after WithPrincipal(zero) error = %v, want ErrNoPrincipal", err)
@@ -61,7 +61,7 @@ func TestForeignContextValueCannotImpersonateAPrincipal(t *testing.T) {
 		t.Fatalf("NewPrincipal returned error: %v", err)
 	}
 
-	ctx := context.WithValue(context.Background(), foreignKey{}, forged)
+	ctx := context.WithValue(t.Context(), foreignKey{}, forged)
 
 	if _, err := identity.FromContext(ctx); !errors.Is(err, identity.ErrNoPrincipal) {
 		t.Fatalf("FromContext with a forged value error = %v, want ErrNoPrincipal", err)
@@ -80,7 +80,7 @@ func TestWithPrincipalReplacesRatherThanMergesAnEarlierPrincipal(t *testing.T) {
 		t.Fatalf("NewPrincipal returned error: %v", err)
 	}
 
-	ctx := identity.WithPrincipal(identity.WithPrincipal(context.Background(), first), second)
+	ctx := identity.WithPrincipal(identity.WithPrincipal(t.Context(), first), second)
 
 	got, err := identity.FromContext(ctx)
 	if err != nil {

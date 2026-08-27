@@ -1,7 +1,6 @@
 package mcpserver_test
 
 import (
-	"context"
 	"encoding/json"
 	"slices"
 	"strings"
@@ -15,7 +14,7 @@ import (
 func callServerInfo(t *testing.T, server *mcpserver.Server) mcpserver.ServerInfo {
 	t.Helper()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: mcpserver.ServerInfoToolName})
 	if err != nil {
@@ -118,7 +117,7 @@ func TestServerInfoVisibleToolCountMatchesToolsList(t *testing.T) {
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, writeOnlyGranted(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	listed, err := session.ListTools(ctx, nil)
@@ -143,7 +142,7 @@ func TestServerInfoDisclosesNoAccountDataWithScopesReported(t *testing.T) {
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, destructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: mcpserver.ServerInfoToolName})

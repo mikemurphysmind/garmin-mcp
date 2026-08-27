@@ -48,10 +48,8 @@ func (c *Client) FanOut(ctx context.Context, count int, task func(ctx context.Co
 	var once sync.Once
 	var firstErr error
 
-	wg.Add(workerCount)
 	for range workerCount {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for index := range indexes {
 				if err := task(runCtx, index); err != nil {
 					once.Do(func() { firstErr = err })
@@ -59,7 +57,7 @@ func (c *Client) FanOut(ctx context.Context, count int, task func(ctx context.Co
 					return
 				}
 			}
-		}()
+		})
 	}
 
 	feedIndexes(runCtx, indexes, count)

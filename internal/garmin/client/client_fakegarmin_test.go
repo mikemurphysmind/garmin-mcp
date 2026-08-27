@@ -144,8 +144,8 @@ func TestFakeServiceRateLimitKeepsItsRetryAfterAndIsNotRetried(t *testing.T) {
 		t.Fatalf("Do() = %v, want ErrRateLimited", err)
 	}
 
-	var apiErr *client.APIError
-	if !errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[*client.APIError](err)
+	if !ok {
 		t.Fatal("the failure is not an *APIError")
 	}
 	if apiErr.RetryAfter != 3*time.Second {

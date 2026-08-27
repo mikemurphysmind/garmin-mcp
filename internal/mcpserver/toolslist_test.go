@@ -100,7 +100,7 @@ func TestToolsListOnStdioShowsOnlyReadOnlyTools(t *testing.T) {
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.ListTools(ctx, nil)
@@ -119,7 +119,7 @@ func TestToolsListOnEnabledStdioShowsWriteAndConfirmableDestructiveTools(t *test
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, localDestructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, elicitationCapableOptions())
 
 	result, err := session.ListTools(ctx, nil)
@@ -138,7 +138,7 @@ func TestToolsListOnEnabledStdioHidesDestructiveWithoutElicitation(t *testing.T)
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, localDestructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.ListTools(ctx, nil)
@@ -160,7 +160,7 @@ func TestToolsListWithReadOnlyTokenShowsOnlyReadOnlyTools(t *testing.T) {
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, readOnlyTokenGranted(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.ListTools(ctx, nil)
@@ -182,7 +182,7 @@ func TestToolsListWithWriteGrantedShowsReadOnlyAndWrite(t *testing.T) {
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, writeOnlyGranted(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.ListTools(ctx, nil)
@@ -208,7 +208,7 @@ func TestToolsListWithDestructiveGrantedAndElicitationShowsAllThreeTiers(t *test
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, destructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, elicitationCapableOptions())
 
 	result, err := session.ListTools(ctx, nil)
@@ -232,7 +232,7 @@ func TestToolsListHidesDestructiveToolsWhenClientDeclaresNoElicitation(t *testin
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, destructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.ListTools(ctx, nil)
@@ -270,7 +270,7 @@ func TestToolsListNeverShowsAToolAnAllowlistExcludes(t *testing.T) {
 		}
 		d.Policy = p
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.ListTools(ctx, nil)
@@ -301,7 +301,7 @@ func TestToolsListNeverAddsAToolDecideWouldRefuse(t *testing.T) {
 
 	for i, shape := range shapes {
 		server, _, _ := tieredServer(t, shape)
-		ctx := context.Background()
+		ctx := t.Context()
 		session := connectClient(t, ctx, server, nil)
 
 		result, err := session.ListTools(ctx, nil)
@@ -326,7 +326,7 @@ func TestToolsListPublishesTheTierInMeta(t *testing.T) {
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, destructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	// Elicitation-capable, so the destructive tool is on the wire to check: an
 	// undeclared-capability client would never see it at all, and this test's
 	// point is what its _meta says, not whether it is present.
@@ -367,7 +367,7 @@ func TestToolsListResultIsPrivatelyCacheable(t *testing.T) {
 	t.Parallel()
 
 	server, _, _ := tieredServer(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.ListTools(ctx, nil)

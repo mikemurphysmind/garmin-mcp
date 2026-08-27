@@ -1,7 +1,6 @@
 package policy_test
 
 import (
-	"context"
 	"errors"
 	"slices"
 	"testing"
@@ -19,7 +18,7 @@ func TestEffectiveTiersAlwaysIncludesReadOnly(t *testing.T) {
 		t.Fatalf("policy.New() = %v", err)
 	}
 
-	got := pol.EffectiveTiers(context.Background())
+	got := pol.EffectiveTiers(t.Context())
 	if !slices.Contains(got, policy.TierReadOnly) {
 		t.Fatalf("EffectiveTiers() = %v, want it to contain TierReadOnly", got)
 	}
@@ -35,7 +34,7 @@ func TestEffectiveTiersIncludesLocallyAuthorizedTiers(t *testing.T) {
 		t.Fatalf("policy.New() = %v", err)
 	}
 
-	got := pol.EffectiveTiers(context.Background())
+	got := pol.EffectiveTiers(t.Context())
 	want := []policy.Tier{policy.TierReadOnly, policy.TierWrite, policy.TierDestructive}
 	if !slices.Equal(got, want) {
 		t.Fatalf("EffectiveTiers() = %v, want %v", got, want)
@@ -78,7 +77,7 @@ func TestEffectiveTiersMatchesDecideForEveryRegisteredTool(t *testing.T) {
 			if err != nil {
 				t.Fatalf("policy.New() = %v", err)
 			}
-			ctx := context.Background()
+			ctx := t.Context()
 			effective := pol.EffectiveTiers(ctx)
 
 			for _, tool := range registered {
@@ -112,7 +111,7 @@ func TestEffectiveTiersFailsClosedOnAScopeLookupError(t *testing.T) {
 		t.Fatalf("policy.New() = %v", err)
 	}
 
-	got := pol.EffectiveTiers(context.Background())
+	got := pol.EffectiveTiers(t.Context())
 	if !slices.Equal(got, []policy.Tier{policy.TierReadOnly}) {
 		t.Fatalf("EffectiveTiers() = %v, want only TierReadOnly on a scope lookup failure", got)
 	}
@@ -131,7 +130,7 @@ func TestGrantedScopesReturnsWhatTheSourceGrants(t *testing.T) {
 		t.Fatalf("policy.New() = %v", err)
 	}
 
-	got := pol.GrantedScopes(context.Background())
+	got := pol.GrantedScopes(t.Context())
 	want := []policy.Scope{policy.ScopeWrite, "garmin:read:health"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("GrantedScopes() = %v, want %v", got, want)
@@ -157,7 +156,7 @@ func TestEffectiveTiersExcludesATierTheAllowlistLeavesWithNoUsableTool(t *testin
 		t.Fatalf("policy.New() = %v", err)
 	}
 
-	got := pol.EffectiveTiers(context.Background())
+	got := pol.EffectiveTiers(t.Context())
 	if !slices.Equal(got, []policy.Tier{policy.TierReadOnly}) {
 		t.Fatalf("EffectiveTiers() = %v, want only [read-only]: the allowlist "+
 			"leaves no usable tool in either higher tier", got)
@@ -177,7 +176,7 @@ func TestEffectiveTiersExcludesATierTheDenylistLeavesWithNoUsableTool(t *testing
 		t.Fatalf("policy.New() = %v", err)
 	}
 
-	got := pol.EffectiveTiers(context.Background())
+	got := pol.EffectiveTiers(t.Context())
 	if !slices.Equal(got, []policy.Tier{policy.TierReadOnly}) {
 		t.Fatalf("EffectiveTiers() = %v, want only [read-only]: the denylist "+
 			"removes the only tool the write tier has", got)
@@ -194,7 +193,7 @@ func TestGrantedScopesReturnsNoneOnALookupError(t *testing.T) {
 		t.Fatalf("policy.New() = %v", err)
 	}
 
-	if got := pol.GrantedScopes(context.Background()); got != nil {
+	if got := pol.GrantedScopes(t.Context()); got != nil {
 		t.Fatalf("GrantedScopes() = %v, want nil on a lookup error", got)
 	}
 }

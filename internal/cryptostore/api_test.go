@@ -6,7 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -39,7 +39,7 @@ func TestExportedFunctionSurfaceIsNarrow(t *testing.T) {
 		}
 		got = append(got, exportedFuncNames(file)...)
 	}
-	sort.Strings(got)
+	slices.Sort(got)
 
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("exported functions = %v, want %v", got, want)

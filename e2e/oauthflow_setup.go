@@ -132,7 +132,7 @@ func setUpOAuthFlow(t *testing.T, n int) oauthFlowFixture {
 			challenge:   challenge,
 		}
 		seedConsent(t, sqlite, params)
-		for i := 0; i < n; i++ {
+		for range n {
 			codes = append(codes, seedAuthCode(t, sqlite, params))
 		}
 	})

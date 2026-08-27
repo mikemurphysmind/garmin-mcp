@@ -135,8 +135,8 @@ func TestAuthorizationRefusesAnUnregisteredClient(t *testing.T) {
 		t.Fatal("Begin accepted an unregistered client")
 	}
 
-	var refusal loginweb.Refusal
-	if !errors.As(err, &refusal) {
+	refusal, ok := errors.AsType[loginweb.Refusal](err)
+	if !ok {
 		t.Fatalf("error %v is not a loginweb.Refusal, so the pages cannot deliver it", err)
 	}
 	if refusal.Location() != "" {

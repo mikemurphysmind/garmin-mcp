@@ -253,8 +253,8 @@ func (s *RemoteServer) refuseSession(
 // redirected only once the authorization server has decided it has earned a
 // destination; otherwise it is rendered here.
 func (s *RemoteServer) refuseAuthorization(w http.ResponseWriter, r *http.Request, cause error) {
-	var refusal Refusal
-	if !errors.As(cause, &refusal) {
+	refusal, ok := errors.AsType[Refusal](cause)
+	if !ok {
 		s.notFound(w)
 		return
 	}

@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -12,7 +11,7 @@ import (
 func TestRegisterClientStoresExactRedirectURIs(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	uris := []string{testRedirectURI, "http://127.0.0.1:7777/cb"}
 	client, err := opened.RegisterClient(ctx, store.ClientRegistration{
@@ -54,7 +53,7 @@ func TestRegisterClientStoresExactRedirectURIs(t *testing.T) {
 func TestRedirectURIMatchingIsExact(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 
 	if err := opened.CheckRedirectURI(ctx, client.ID, testRedirectURI); err != nil {
@@ -82,7 +81,7 @@ func TestRedirectURIMatchingIsExact(t *testing.T) {
 func TestRegisterClientRefusesUnsafeRedirectURIs(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	cases := map[string][]string{
 		"no uri at all":       {},
@@ -115,7 +114,7 @@ func TestRegisterClientRefusesAnEmptyName(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
 
-	_, err := opened.RegisterClient(context.Background(), store.ClientRegistration{
+	_, err := opened.RegisterClient(t.Context(), store.ClientRegistration{
 		Name:         "   ",
 		RedirectURIs: []string{testRedirectURI},
 	})
@@ -127,7 +126,7 @@ func TestRegisterClientRefusesAnEmptyName(t *testing.T) {
 func TestAuthenticateClientChecksTheSecret(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 
 	_, err := opened.AuthenticateClient(ctx, client.ID, store.NewSecret("test-client-secret"))
@@ -158,7 +157,7 @@ func TestAuthenticateClientChecksTheSecret(t *testing.T) {
 func TestAuthenticateAPublicClient(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	client, err := opened.RegisterClient(ctx, store.ClientRegistration{
 		Name:         "Public Client",
@@ -185,7 +184,7 @@ func TestAuthenticateAPublicClient(t *testing.T) {
 func TestDisableClientHidesItFromEveryLookup(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 
 	if err := opened.DisableClient(ctx, client.ID); err != nil {
@@ -217,7 +216,7 @@ func TestDisableClientHidesItFromEveryLookup(t *testing.T) {
 func TestConsentGrantReadAndRegrant(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 
@@ -254,7 +253,7 @@ func TestConsentGrantReadAndRegrant(t *testing.T) {
 func TestGrantConsentRefusesBadScopesAndUnknownRows(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 

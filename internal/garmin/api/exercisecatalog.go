@@ -1,8 +1,10 @@
 package api
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/tamcore/garmin-mcp/internal/garmin/client"
@@ -93,11 +95,7 @@ type ExerciseCatalog struct {
 // newExerciseCatalog builds a snapshot from category rows. The rows are consumed,
 // not retained: everything the snapshot holds is freshly allocated here.
 func newExerciseCatalog(source CatalogSource, rows map[string][]ExerciseType) *ExerciseCatalog {
-	keys := make([]string, 0, len(rows))
-	for key := range rows {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(rows))
 
 	categories := make([]ExerciseCategory, 0, len(keys))
 	index := make(map[string]int, len(keys))
@@ -119,7 +117,7 @@ func buildCategory(category string, exercises []ExerciseType) ExerciseCategory {
 	for _, exercise := range exercises {
 		sorted = append(sorted, exercise.clone())
 	}
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Name < sorted[j].Name })
+	slices.SortFunc(sorted, func(a, b ExerciseType) int { return cmp.Compare(a.Name, b.Name) })
 
 	return ExerciseCategory{
 		Category:    category,

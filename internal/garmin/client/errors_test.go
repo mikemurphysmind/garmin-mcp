@@ -80,8 +80,8 @@ func TestAPIErrorIsAndAsWorkThroughWrapping(t *testing.T) {
 		Err:      cause,
 	})
 
-	var target *client.APIError
-	if !errors.As(err, &target) {
+	target, ok := errors.AsType[*client.APIError](err)
+	if !ok {
 		t.Fatal("errors.As did not find the *APIError")
 	}
 	if target.Op != client.OpGetSocialProfile {

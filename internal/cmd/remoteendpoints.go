@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"cmp"
 	"fmt"
 	"net/url"
 	"slices"
@@ -89,10 +90,7 @@ func newRemoteEndpoints(publicURL string) (remoteEndpoints, error) {
 				"name a cleartext issuer: %w", parsed.Redacted(), ErrInsecureDeployment)
 	}
 
-	path := parsed.Path
-	if path == "" {
-		path = "/"
-	}
+	path := cmp.Or(parsed.Path, "/")
 	if slices.Contains(reservedPaths, strings.TrimSuffix(path, "/")) {
 		return remoteEndpoints{}, fmt.Errorf(
 			"the public URL path %q is one this deployment serves itself: %w",

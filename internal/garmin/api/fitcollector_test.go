@@ -92,8 +92,7 @@ func recordWithHiddenPosition() *proto.Message {
 	record.SetUnknownFields(unknown)
 	record.SetDeveloperFields(proto.DeveloperField{Value: proto.Int32(syntheticLong)})
 
-	mesg := record.ToMesg(nil)
-	return &mesg
+	return new(record.ToMesg(nil))
 }
 
 // The price of one worst-case analysis, stated as arithmetic.

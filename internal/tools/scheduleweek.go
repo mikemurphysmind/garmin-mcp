@@ -39,7 +39,7 @@ type WeekScheduleOutcome struct {
 	CalendarDate   string `json:"calendar_date" jsonschema:"the date this item named"`
 	Status         string `json:"status" jsonschema:"scheduled, already_scheduled or failed"`
 	DuplicateCheck string `json:"duplicate_check" jsonschema:"checked, or failed when the calendar was unreadable"`
-	HTTPStatus     int    `json:"http_status,omitempty" jsonschema:"the HTTP status Garmin answered with"`
+	HTTPStatus     int    `json:"http_status,omitzero" jsonschema:"the HTTP status Garmin answered with"`
 	Advice         string `json:"advice,omitempty" jsonschema:"why this item was not scheduled"`
 }
 

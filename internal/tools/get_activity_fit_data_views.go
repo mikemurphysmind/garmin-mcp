@@ -350,8 +350,7 @@ func fitOptional(value api.FITNumber, places int) *float64 {
 	if !value.OK {
 		return nil
 	}
-	rounded := fitRound(value.Value, places)
-	return &rounded
+	return new(fitRound(value.Value, places))
 }
 
 // fitRound rounds a reading to the given number of decimal places.
@@ -368,6 +367,5 @@ func fitInstant(at time.Time) *string {
 	if at.IsZero() {
 		return nil
 	}
-	rendered := at.UTC().Format(time.RFC3339)
-	return &rendered
+	return new(at.UTC().Format(time.RFC3339))
 }

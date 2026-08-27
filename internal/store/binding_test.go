@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"math"
@@ -39,7 +38,7 @@ func rewriteWrapper(t *testing.T, store *FileStore, mutate func(*storedRecord)) 
 
 func saveOnce(t *testing.T, store *FileStore) {
 	t.Helper()
-	if _, err := store.Save(context.Background(), testPrincipal, newTestTokens(), 0); err != nil {
+	if _, err := store.Save(t.Context(), testPrincipal, newTestTokens(), 0); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 }
@@ -50,7 +49,7 @@ func TestLoadRefusesARewrittenRecordVersion(t *testing.T) {
 
 	rewriteWrapper(t, store, func(record *storedRecord) { record.Version = 42 })
 
-	if _, _, err := store.Load(context.Background(), testPrincipal); !errors.Is(err, ErrCorruptRecord) {
+	if _, _, err := store.Load(t.Context(), testPrincipal); !errors.Is(err, ErrCorruptRecord) {
 		t.Fatalf("Load of a record with a rewritten version: err = %v, want ErrCorruptRecord", err)
 	}
 }
@@ -64,7 +63,7 @@ func TestSaveRefusesARewrittenRecordVersionInsteadOfOverflowing(t *testing.T) {
 
 	rewriteWrapper(t, store, func(record *storedRecord) { record.Version = math.MaxInt64 })
 
-	version, err := store.Save(context.Background(), testPrincipal, newTestTokens(), math.MaxInt64)
+	version, err := store.Save(t.Context(), testPrincipal, newTestTokens(), math.MaxInt64)
 	if !errors.Is(err, ErrCorruptRecord) {
 		t.Fatalf("Save onto a record with a rewritten version: err = %v, want ErrCorruptRecord", err)
 	}
@@ -79,7 +78,7 @@ func TestLoadRefusesARewrittenRecordSchema(t *testing.T) {
 
 	rewriteWrapper(t, store, func(record *storedRecord) { record.Schema = recordSchema + 1 })
 
-	if _, _, err := store.Load(context.Background(), testPrincipal); !errors.Is(err, ErrCorruptRecord) {
+	if _, _, err := store.Load(t.Context(), testPrincipal); !errors.Is(err, ErrCorruptRecord) {
 		t.Fatalf("Load of a record with a rewritten schema: err = %v, want ErrCorruptRecord", err)
 	}
 }

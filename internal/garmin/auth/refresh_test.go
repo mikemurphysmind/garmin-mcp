@@ -237,11 +237,9 @@ func TestConcurrentRefreshCollapsesIntoOneFlight(t *testing.T) {
 		mu      sync.Mutex
 		results []auth.TokenSet
 	)
-	wg.Add(callers)
 
 	for range callers {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			set, err := h.refresher.Refresh(t.Context(), testPrincipalID)
 			if err != nil {
 				t.Errorf("Refresh: %v", err)
@@ -250,7 +248,7 @@ func TestConcurrentRefreshCollapsesIntoOneFlight(t *testing.T) {
 			mu.Lock()
 			results = append(results, set)
 			mu.Unlock()
-		}()
+		})
 	}
 
 	// Give the callers time to pile up behind the in-flight refresh.
@@ -305,13 +303,11 @@ func TestConcurrentRefreshOfDifferentPrincipalsDoesNotSerialize(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for _, principal := range []string{"principal-a", "principal-b"} {
-		wg.Add(1)
-		go func(principal string) {
-			defer wg.Done()
+		wg.Go(func() {
 			if _, err := h.refresher.Refresh(t.Context(), principal); err != nil {
 				t.Errorf("Refresh %s: %v", principal, err)
 			}
-		}(principal)
+		})
 	}
 	wg.Wait()
 

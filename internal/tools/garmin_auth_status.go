@@ -92,6 +92,6 @@ func nonBlankAccount(account *string) *string {
 }
 
 func isUnauthorizedProfile(err error) bool {
-	var apiErr *client.APIError
-	return errors.As(err, &apiErr) && apiErr.Status == http.StatusUnauthorized
+	apiErr, ok := errors.AsType[*client.APIError](err)
+	return ok && apiErr.Status == http.StatusUnauthorized
 }

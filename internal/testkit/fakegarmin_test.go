@@ -1,7 +1,6 @@
 package testkit
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,7 +17,7 @@ const contentTypeForm = "application/x-www-form-urlencoded"
 func post(t *testing.T, doer Doer, rawURL, contentType, body string) protocol.Response {
 	t.Helper()
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, rawURL, strings.NewReader(body))
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, rawURL, strings.NewReader(body))
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
@@ -40,7 +39,7 @@ func post(t *testing.T, doer Doer, rawURL, contentType, body string) protocol.Re
 func get(t *testing.T, doer Doer, rawURL string) protocol.Response {
 	t.Helper()
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, rawURL, nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, rawURL, nil)
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}

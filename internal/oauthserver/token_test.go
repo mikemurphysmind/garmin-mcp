@@ -1,7 +1,6 @@
 package oauthserver
 
 import (
-	"context"
 	"encoding/base64"
 	"errors"
 	"net/http"
@@ -14,7 +13,7 @@ import (
 func (h *harness) issuedCode(t *testing.T, req AuthorizeRequest) string {
 	t.Helper()
 	capability, _ := h.authenticated(t, req)
-	completion, err := h.srv.GrantConsent(context.Background(), capability)
+	completion, err := h.srv.GrantConsent(t.Context(), capability)
 	if err != nil {
 		t.Fatalf("GrantConsent: %v", err)
 	}
@@ -27,13 +26,13 @@ func (h *harness) issuedCode(t *testing.T, req AuthorizeRequest) string {
 
 func (h *harness) exchange(t *testing.T, req TokenRequest) (TokenResponse, error) {
 	t.Helper()
-	return h.srv.Token(context.Background(), req)
+	return h.srv.Token(t.Context(), req)
 }
 
 func asTokenError(t *testing.T, err error) *TokenError {
 	t.Helper()
-	var tokenErr *TokenError
-	if !errors.As(err, &tokenErr) {
+	tokenErr, ok := errors.AsType[*TokenError](err)
+	if !ok {
 		t.Fatalf("error is not a *TokenError: %v", err)
 	}
 	return tokenErr

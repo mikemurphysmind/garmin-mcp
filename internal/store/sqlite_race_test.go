@@ -56,7 +56,7 @@ func electSaveWinner(t *testing.T, results []saveOutcome) saveOutcome {
 func TestConcurrentRotatedGarminWritesElectOneWinner(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 
 	base, err := opened.Save(ctx, principal.ID, newSQLTestTokens(), 0)
@@ -102,7 +102,7 @@ func TestConcurrentRotatedGarminWritesElectOneWinner(t *testing.T) {
 func TestConcurrentGarminWritersNeverLoseARotation(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 
 	if _, err := opened.Save(ctx, principal.ID, newSQLTestTokens(), 0); err != nil {
@@ -159,7 +159,7 @@ func saveWithRetry(ctx context.Context, s *store.SQLiteStore, principalID, token
 func TestConcurrentReadersAndWriterNeverSeeATornGarminRecord(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 
 	if _, err := opened.Save(ctx, principal.ID, newSQLTestTokens(), 0); err != nil {
@@ -201,7 +201,7 @@ func TestConcurrentReadersAndWriterNeverSeeATornGarminRecord(t *testing.T) {
 func TestSeparatePrincipalsDoNotBlockEachOther(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	const principals = 4
 	ids := make([]string, principals)
@@ -239,7 +239,7 @@ func TestSeparatePrincipalsDoNotBlockEachOther(t *testing.T) {
 func TestConcurrentRefreshRotationsElectOneWinner(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	const callers = 4
@@ -286,7 +286,7 @@ func TestConcurrentRefreshRotationsElectOneWinner(t *testing.T) {
 func TestConcurrentAuthCodeRedemptionsElectOneWinner(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 	code := seedCode(t, opened, principal.ID, client.ID, testCode)
@@ -327,7 +327,7 @@ func TestConcurrentAuthCodeRedemptionsElectOneWinner(t *testing.T) {
 func TestConcurrentRevocationsAreIdempotent(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	const callers = 4
@@ -372,7 +372,7 @@ func TestConcurrentRevocationsAreIdempotent(t *testing.T) {
 func TestConcurrentUnlinksAreIdempotent(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	err := opened.LinkGarminAccount(ctx, grant.principal.ID, store.GarminIdentity{
@@ -423,7 +423,7 @@ func TestConcurrentUnlinksAreIdempotent(t *testing.T) {
 func TestConcurrentPrincipalCreationForOneEmailElectsOneWinner(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	const callers = 4
 	errs := make([]error, callers)
@@ -461,7 +461,7 @@ func TestConcurrentPrincipalCreationForOneEmailElectsOneWinner(t *testing.T) {
 func TestConcurrentCleanupAndTrafficDoNotInterfere(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	var group sync.WaitGroup

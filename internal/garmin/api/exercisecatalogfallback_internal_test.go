@@ -230,7 +230,7 @@ func TestLoadExerciseCatalogUsesTheCompiledInURL(t *testing.T) {
 	// A cancelled context reaches the network with nothing, which is the cheapest
 	// way to prove the exported entry point still answers with a usable catalog
 	// and never touches Garmin from a test.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	catalog := LoadExerciseCatalog(ctx)

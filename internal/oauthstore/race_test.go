@@ -64,7 +64,7 @@ func countWinners(t *testing.T, outcomes []outcome, loserSentinel error) int {
 // already-used error.
 func TestConsumeCodeElectsExactlyOneRedeemer(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	code := f.code("race-code")
 	if err := f.adapter.SaveCode(ctx, code); err != nil {
 		t.Fatalf("SaveCode: %v", err)
@@ -85,7 +85,7 @@ func TestConsumeCodeElectsExactlyOneRedeemer(t *testing.T) {
 // callers can serialize and each win its own compare-and-set in turn.
 func TestConsumeTransactionElectsExactlyOneCaller(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	transaction := f.transaction("race-transaction", oauthserver.ClientState{})
 	if err := f.adapter.CreateTransaction(ctx, transaction); err != nil {
 		t.Fatalf("CreateTransaction: %v", err)
@@ -118,7 +118,7 @@ func TestConsumeTransactionElectsExactlyOneCaller(t *testing.T) {
 // nothing.
 func TestRotateRefreshTokenElectsOneWinnerAndKillsTheFamily(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	access, presented := f.seedFamily(t, "family-race-rotate", "race-rotate")
 
 	replacements := make([]oauthserver.RefreshToken, racers)
@@ -145,7 +145,7 @@ func assertLosersStoredNothing(t *testing.T, f fixture, outcomes []outcome,
 	replacements []oauthserver.RefreshToken,
 ) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	for index, got := range outcomes {
 		if got.err == nil {
 			continue
@@ -160,7 +160,7 @@ func assertLosersStoredNothing(t *testing.T, f fixture, outcomes []outcome,
 // RevokeConsent cascades transactionally and fails closed, under contention.
 func TestRevokeConsentIsSafeUnderContention(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	access, _ := f.seedFamily(t, "family-race-consent", "race-consent")
 
 	outcomes := race(func(int) error { return f.adapter.RevokeConsent(ctx, f.consentKey()) })
@@ -183,7 +183,7 @@ func TestRevokeConsentIsSafeUnderContention(t *testing.T) {
 // RevokePrincipal cascades transactionally and fails closed, under contention.
 func TestRevokePrincipalIsSafeUnderContention(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	access, refresh := f.seedFamily(t, "family-race-principal", "race-principal")
 
 	outcomes := race(func(int) error { return f.adapter.RevokePrincipal(ctx, f.principal) })

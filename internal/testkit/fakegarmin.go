@@ -13,6 +13,7 @@
 package testkit
 
 import (
+	"cmp"
 	"io"
 	"maps"
 	"net/http"
@@ -231,16 +232,10 @@ func writeBehavior(w http.ResponseWriter, b Behavior) {
 			w.Header().Add(key, value)
 		}
 	}
-	contentType := b.ContentType
-	if contentType == "" {
-		contentType = "text/plain;charset=UTF-8"
-	}
+	contentType := cmp.Or(b.ContentType, "text/plain;charset=UTF-8")
 	w.Header().Set("Content-Type", contentType)
 
-	status := b.Status
-	if status == 0 {
-		status = http.StatusOK
-	}
+	status := cmp.Or(b.Status, http.StatusOK)
 	w.WriteHeader(status)
 	_, _ = io.WriteString(w, b.Body)
 }

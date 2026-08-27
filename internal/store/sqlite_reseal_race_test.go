@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"strconv"
 	"sync"
 	"testing"
@@ -17,7 +16,7 @@ func TestConcurrentRefreshRacingTheResealerNeverLosesEitherWrite(t *testing.T) {
 	oldKey := mustGenerateKey(t, 1)
 
 	seed := openStoreWithKeys(t, path, oldKey, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, seed)
 	if _, err := seed.Save(ctx, principal.ID, newSQLTestTokens(), 0); err != nil {
 		t.Fatalf("seed Save: %v", err)
@@ -94,7 +93,7 @@ func TestResealCoversPrincipalIdentitiesAndAuthTransactionStates(t *testing.T) {
 	oldKey := mustGenerateKey(t, 1)
 
 	seed := openStoreWithKeys(t, path, oldKey, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, seed)
 	if err := seed.LinkGarminAccount(ctx, principal.ID, store.GarminIdentity{
 		AccountID: store.NewSecret(testGarminAccount), DisplayName: testDisplayName,

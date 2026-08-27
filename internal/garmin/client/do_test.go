@@ -2,6 +2,7 @@ package client_test
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"io"
@@ -68,10 +69,7 @@ func (c *stubCaller) Do(ctx context.Context, principal string, req *http.Request
 		return nil, outcome.err
 	}
 
-	status := outcome.status
-	if status == 0 {
-		status = http.StatusOK
-	}
+	status := cmp.Or(outcome.status, http.StatusOK)
 	header := outcome.header
 	if header == nil {
 		header = make(http.Header)
@@ -289,8 +287,8 @@ func TestDoClassifiesStatusesIntoDistinguishableKinds(t *testing.T) {
 			limits := client.Limits{MaxAttempts: 1}
 			_, err := newTestClient(t, limits).Do(t.Context(), mustSession(t, caller), profileRequest())
 
-			var apiErr *client.APIError
-			if !errors.As(err, &apiErr) {
+			apiErr, ok := errors.AsType[*client.APIError](err)
+			if !ok {
 				t.Fatalf("Do() = %v, want an *APIError", err)
 			}
 			if apiErr.Kind != want.kind {

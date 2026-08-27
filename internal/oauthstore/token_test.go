@@ -1,7 +1,6 @@
 package oauthstore_test
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -13,7 +12,7 @@ import (
 
 func TestSaveAndConsumeCodeKeepsEveryBinding(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	written := f.code("redeem")
 	if err := f.adapter.SaveCode(ctx, written); err != nil {
@@ -49,7 +48,7 @@ func TestSaveAndConsumeCodeKeepsEveryBinding(t *testing.T) {
 
 func TestConsumeCodeIsSingleUse(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	written := f.code("replay")
 	if err := f.adapter.SaveCode(ctx, written); err != nil {
@@ -67,7 +66,7 @@ func TestConsumeCodeIsSingleUse(t *testing.T) {
 
 func TestConsumeCodeReportsUnknownAndExpired(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, err := f.adapter.ConsumeCode(ctx, lookupOf("never-issued")); !errors.Is(
 		err, oauthserver.ErrCodeNotFound) {
@@ -91,7 +90,7 @@ func TestConsumeCodeReportsUnknownAndExpired(t *testing.T) {
 
 func TestSaveTokenPairHonoursTheCallersFamily(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	access, refresh := f.seedFamily(t, "family-honoured", "honoured")
 
 	storedAccess, err := f.adapter.AccessToken(ctx, access.Lookup)
@@ -127,7 +126,7 @@ func TestSaveTokenPairNeedsAConsent(t *testing.T) {
 	f := newFixture(t)
 
 	access, refresh := f.pair("family-unconsented", "unconsented", 0)
-	err := f.adapter.SaveTokenPair(context.Background(), access, refresh)
+	err := f.adapter.SaveTokenPair(t.Context(), access, refresh)
 	if !errors.Is(err, oauthserver.ErrConsentNotFound) {
 		t.Fatalf("error is %v, want ErrConsentNotFound", err)
 	}
@@ -135,7 +134,7 @@ func TestSaveTokenPairNeedsAConsent(t *testing.T) {
 
 func TestTokenReadsReportUnknownMaterial(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, err := f.adapter.AccessToken(ctx, lookupOf("unknown-access")); !errors.Is(
 		err, oauthserver.ErrTokenNotFound) {
@@ -151,7 +150,7 @@ func TestTokenReadsReportUnknownMaterial(t *testing.T) {
 // judgement belongs to the caller, which has IsExpired for it.
 func TestAccessTokenReturnsAnExpiredRecord(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	access, _ := f.seedFamily(t, "family-expired", "expired-token")
 	f.clock.advance(time.Hour)
 
@@ -166,7 +165,7 @@ func TestAccessTokenReturnsAnExpiredRecord(t *testing.T) {
 
 func TestRevokeFamilyIsIdempotentAndReportsAnUnknownFamily(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	access, _ := f.seedFamily(t, "family-revoked", "revoked")
 
 	if err := f.adapter.RevokeFamily(ctx, access.Family, oauthserver.RevokeReasonClient); err != nil {
@@ -195,7 +194,7 @@ func TestRevokeFamilyIsIdempotentAndReportsAnUnknownFamily(t *testing.T) {
 // reason.
 func TestRevokeFamilyRefusesAnUnrecognisedReasonAndDoesNotRevoke(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	access, _ := f.seedFamily(t, "family-bad-reason", "bad-reason")
 
 	unrecognised := oauthserver.RevokeReason(999)
@@ -216,7 +215,7 @@ func TestRevokeFamilyRefusesAnUnrecognisedReasonAndDoesNotRevoke(t *testing.T) {
 
 func TestRotateRefreshTokenIssuesTheNextGeneration(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	_, presented := f.seedFamily(t, "family-rotate", "rotate")
 
 	nextAccess, nextRefresh := f.pair(presented.Family, "rotate-2", 1)
@@ -244,7 +243,7 @@ func TestRotateRefreshTokenIssuesTheNextGeneration(t *testing.T) {
 // transaction.
 func TestRefreshTokenReturnsARotatedRecord(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	_, presented := f.seedFamily(t, "family-rotated-read", "rotated-read")
 
 	nextAccess, nextRefresh := f.pair(presented.Family, "rotated-read-2", 1)
@@ -269,7 +268,7 @@ func TestRefreshTokenReturnsARotatedRecord(t *testing.T) {
 // is exactly the defect this pass fixes.
 func TestRefreshTokenReportsWhetherItWasConsumed(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	_, presented := f.seedFamily(t, "family-consumed-flag", "consumed-flag")
 
 	unread, err := f.adapter.RefreshToken(ctx, presented.Lookup)
@@ -310,7 +309,7 @@ func TestRefreshTokenReportsWhetherItWasConsumed(t *testing.T) {
 // actually closes rather than surviving until its next request.
 func TestRevokeFamilyPublishesAnEventForAConsumedReplay(t *testing.T) {
 	f, sink := newFixtureWithSink(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	_, presented := f.seedFamily(t, "family-consumed-replay", "consumed-replay")
 
 	nextAccess, nextRefresh := f.pair(presented.Family, "consumed-replay-2", 1)
@@ -361,7 +360,7 @@ func TestRevokeFamilyPublishesAnEventForAConsumedReplay(t *testing.T) {
 // is revoked afterward, not merely that the row used to detect it survived.
 func TestConsumedRowSurvivesCleanupAndReplayStillRevokesTheLiveFamily(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	access0, refresh0 := f.seedFamily(t, "family-cleanup-replay", "cleanup-replay-0")
 
 	// Rotate while generation 0 is still comfortably live.
@@ -405,7 +404,7 @@ func TestConsumedRowSurvivesCleanupAndReplayStillRevokesTheLiveFamily(t *testing
 
 func TestRevokePrincipalRevokesEverythingAndIsIdempotent(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	access, _ := f.seedFamily(t, "family-principal", "principal")
 
 	if err := f.adapter.RevokePrincipal(ctx, f.principal); err != nil {
@@ -441,7 +440,7 @@ func TestRevokePrincipalRevokesEverythingAndIsIdempotent(t *testing.T) {
 // intended contract and blind to the adapter that broke it.
 func TestRotateRefreshTokenPersistsTheNarrowedScopeOfTheNewAccessToken(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// The family being consumed must be WIDER than what the rotation narrows to,
 	// or there is nothing to detect: the fixture's own scope set is the narrow one,

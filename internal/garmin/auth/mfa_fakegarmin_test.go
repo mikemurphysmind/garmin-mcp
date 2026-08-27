@@ -333,12 +333,10 @@ func TestConcurrentWrongCodeSubmissionsLeaveTransactionRetryable(t *testing.T) {
 
 	var wg sync.WaitGroup
 	errs := make([]error, callers)
-	wg.Add(callers)
 	for i := range callers {
-		go func(i int) {
-			defer wg.Done()
+		wg.Go(func() {
 			_, errs[i] = h.auth.CompleteMFA(t.Context(), capability, testPrincipal, "000000")
-		}(i)
+		})
 	}
 	wg.Wait()
 
@@ -526,14 +524,12 @@ func TestInterleavedMFALoginsStayIsolated(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(len(capabilities))
 	for principal, capability := range capabilities {
-		go func(principal, capability string) {
-			defer wg.Done()
+		wg.Go(func() {
 			if _, err := h.auth.CompleteMFA(t.Context(), capability, principal, testMFACode); err != nil {
 				t.Errorf("CompleteMFA %s: %v", principal, err)
 			}
-		}(principal, capability)
+		})
 	}
 	wg.Wait()
 
@@ -564,17 +560,15 @@ func TestConcurrentCompleteMFAIsSingleUse(t *testing.T) {
 		mu        sync.Mutex
 		succeeded int
 	)
-	wg.Add(callers)
 
 	for range callers {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			if _, err := h.auth.CompleteMFA(t.Context(), capability, testPrincipal, testMFACode); err == nil {
 				mu.Lock()
 				succeeded++
 				mu.Unlock()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

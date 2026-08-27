@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"cmp"
 	"net/http"
 	"time"
 )
@@ -66,10 +67,7 @@ func NewResponse(resp *http.Response, body []byte) Response {
 // contentType is taken from header. The header is copied; body is retained by
 // reference and must not be modified afterwards.
 func NewResponseFromParts(status int, contentType string, header http.Header, body []byte) Response {
-	mediaType := contentType
-	if mediaType == "" {
-		mediaType = header.Get("Content-Type")
-	}
+	mediaType := cmp.Or(contentType, header.Get("Content-Type"))
 	return Response{parts: seal(&responseParts{
 		status:    status,
 		header:    header.Clone(),

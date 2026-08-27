@@ -1,7 +1,6 @@
 package cmd_test
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -152,7 +151,7 @@ func TestRotateKeyResealsTheLocalFileStoreRecord(t *testing.T) {
 		t.Fatalf("NewFileStore: %v", err)
 	}
 	set := store.NewTokenSet("token", testRefreshTokenValue, "client-id", time.Time{})
-	if _, err := files.Save(context.Background(), config.DefaultPrincipalID, set, 0); err != nil {
+	if _, err := files.Save(t.Context(), config.DefaultPrincipalID, set, 0); err != nil {
 		t.Fatalf("seed Save: %v", err)
 	}
 
@@ -172,7 +171,7 @@ func TestRotateKeyResealsTheLocalFileStoreRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFileStore with only the target key: %v", err)
 	}
-	loaded, _, err := targetOnly.Load(context.Background(), config.DefaultPrincipalID)
+	loaded, _, err := targetOnly.Load(t.Context(), config.DefaultPrincipalID)
 	if err != nil {
 		t.Fatalf("Load with only the target key after rotation: %v", err)
 	}
@@ -197,7 +196,7 @@ func TestRotateKeyResumesAfterBeingKilledMidRotationFileStore(t *testing.T) {
 		t.Fatalf("NewFileStore: %v", err)
 	}
 	set := store.NewTokenSet("token", testRefreshTokenValue, "client-id", time.Time{})
-	if _, err := files.Save(context.Background(), config.DefaultPrincipalID, set, 0); err != nil {
+	if _, err := files.Save(t.Context(), config.DefaultPrincipalID, set, 0); err != nil {
 		t.Fatalf("seed Save: %v", err)
 	}
 
@@ -227,7 +226,7 @@ func TestRotateKeyResumesAfterBeingKilledMidRotationFileStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFileStore with only the target key: %v", err)
 	}
-	loaded, _, err := targetOnly.Load(context.Background(), config.DefaultPrincipalID)
+	loaded, _, err := targetOnly.Load(t.Context(), config.DefaultPrincipalID)
 	if err != nil {
 		t.Fatalf("Load with only the target key after resuming: %v", err)
 	}
@@ -244,15 +243,15 @@ func TestRotateKeyResumesAfterBeingKilledMidRotationSQLite(t *testing.T) {
 	oldKey := seedFileStoreKeyRing(t, stateDir)
 	dbPath := filepath.Join(stateDir, "state.db")
 
-	seed, err := store.OpenSQLite(context.Background(), store.SQLiteConfig{Path: dbPath, Key: oldKey})
+	seed, err := store.OpenSQLite(t.Context(), store.SQLiteConfig{Path: dbPath, Key: oldKey})
 	if err != nil {
 		t.Fatalf("OpenSQLite: %v", err)
 	}
-	principal, err := seed.CreatePrincipal(context.Background(), "rotate-key-resume-test@example.com")
+	principal, err := seed.CreatePrincipal(t.Context(), "rotate-key-resume-test@example.com")
 	if err != nil {
 		t.Fatalf("CreatePrincipal: %v", err)
 	}
-	if _, err := seed.Save(context.Background(), principal.ID,
+	if _, err := seed.Save(t.Context(), principal.ID,
 		store.NewTokenSet("token", testRefreshTokenValue, "client-id", time.Time{}), 0); err != nil {
 		t.Fatalf("seed Save: %v", err)
 	}
@@ -280,12 +279,12 @@ func TestRotateKeyResumesAfterBeingKilledMidRotationSQLite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadKey version 2 after resuming: %v", err)
 	}
-	targetOnly, err := store.OpenSQLite(context.Background(), store.SQLiteConfig{Path: dbPath, Key: targetKey})
+	targetOnly, err := store.OpenSQLite(t.Context(), store.SQLiteConfig{Path: dbPath, Key: targetKey})
 	if err != nil {
 		t.Fatalf("OpenSQLite with only the target key after resuming: %v", err)
 	}
 	defer func() { _ = targetOnly.Close() }()
-	loaded, _, err := targetOnly.Load(context.Background(), principal.ID)
+	loaded, _, err := targetOnly.Load(t.Context(), principal.ID)
 	if err != nil {
 		t.Fatalf("Load with only the target key after resuming: %v", err)
 	}
@@ -302,15 +301,15 @@ func TestRotateKeyResealsTheSQLiteStore(t *testing.T) {
 	oldKey := seedFileStoreKeyRing(t, stateDir)
 	dbPath := filepath.Join(stateDir, "state.db")
 
-	seed, err := store.OpenSQLite(context.Background(), store.SQLiteConfig{Path: dbPath, Key: oldKey})
+	seed, err := store.OpenSQLite(t.Context(), store.SQLiteConfig{Path: dbPath, Key: oldKey})
 	if err != nil {
 		t.Fatalf("OpenSQLite: %v", err)
 	}
-	principal, err := seed.CreatePrincipal(context.Background(), "rotate-key-test@example.com")
+	principal, err := seed.CreatePrincipal(t.Context(), "rotate-key-test@example.com")
 	if err != nil {
 		t.Fatalf("CreatePrincipal: %v", err)
 	}
-	if _, err := seed.Save(context.Background(), principal.ID,
+	if _, err := seed.Save(t.Context(), principal.ID,
 		store.NewTokenSet("token", testRefreshTokenValue, "client-id", time.Time{}), 0); err != nil {
 		t.Fatalf("seed Save: %v", err)
 	}
@@ -334,12 +333,12 @@ func TestRotateKeyResealsTheSQLiteStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadKey version 2 after rotation: %v", err)
 	}
-	targetOnly, err := store.OpenSQLite(context.Background(), store.SQLiteConfig{Path: dbPath, Key: targetKey})
+	targetOnly, err := store.OpenSQLite(t.Context(), store.SQLiteConfig{Path: dbPath, Key: targetKey})
 	if err != nil {
 		t.Fatalf("OpenSQLite with only the target key after rotation: %v", err)
 	}
 	defer func() { _ = targetOnly.Close() }()
-	loaded, _, err := targetOnly.Load(context.Background(), principal.ID)
+	loaded, _, err := targetOnly.Load(t.Context(), principal.ID)
 	if err != nil {
 		t.Fatalf("Load with only the target key after rotation: %v", err)
 	}
@@ -368,7 +367,7 @@ func TestRotateKeyResumingRefusesWhenTheTargetKeyIsMissing(t *testing.T) {
 		t.Fatalf("NewFileStore: %v", err)
 	}
 	set := store.NewTokenSet("token", testRefreshTokenValue, "client-id", time.Time{})
-	if _, err := files.Save(context.Background(), config.DefaultPrincipalID, set, 0); err != nil {
+	if _, err := files.Save(t.Context(), config.DefaultPrincipalID, set, 0); err != nil {
 		t.Fatalf("seed Save: %v", err)
 	}
 
@@ -392,7 +391,7 @@ func TestRotateKeyResumingRefusesWhenTheTargetKeyIsMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFileStore with the retiring key: %v", err)
 	}
-	loaded, _, err := stillOld.Load(context.Background(), config.DefaultPrincipalID)
+	loaded, _, err := stillOld.Load(t.Context(), config.DefaultPrincipalID)
 	if err != nil {
 		t.Fatalf("Load with the retiring key after the refusal: %v", err)
 	}
@@ -425,7 +424,7 @@ func TestRotateKeyResumingReportsCompletionWhenTheRetiringKeyIsAlreadyGoneAndNot
 		t.Fatalf("NewFileStore: %v", err)
 	}
 	set := store.NewTokenSet("token", testRefreshTokenValue, "client-id", time.Time{})
-	if _, err := files.Save(context.Background(), config.DefaultPrincipalID, set, 0); err != nil {
+	if _, err := files.Save(t.Context(), config.DefaultPrincipalID, set, 0); err != nil {
 		t.Fatalf("seed Save: %v", err)
 	}
 
@@ -479,7 +478,7 @@ func TestRotateKeySQLiteReportsPartialProgressWhenARowCannotBeRead(t *testing.T)
 	stateDir := rotateStateDir(t)
 	oldKey := seedFileStoreKeyRing(t, stateDir)
 	dbPath := filepath.Join(stateDir, "state.db")
-	ctx := context.Background()
+	ctx := t.Context()
 
 	seed, err := store.OpenSQLite(ctx, store.SQLiteConfig{Path: dbPath, Key: oldKey})
 	if err != nil {

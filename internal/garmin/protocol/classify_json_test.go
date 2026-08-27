@@ -335,8 +335,8 @@ func TestClassificationErr(t *testing.T) {
 		))
 		err := c.Err(OpMobileLogin, EndpointMobileLogin, cause)
 
-		var pe *Error
-		if !errors.As(err, &pe) {
+		pe, ok := errors.AsType[*Error](err)
+		if !ok {
 			t.Fatalf("Err() = %T, want *protocol.Error", err)
 		}
 		if pe.Op != OpMobileLogin || pe.Endpoint != EndpointMobileLogin {

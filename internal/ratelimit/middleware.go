@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"cmp"
 	"context"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -99,10 +100,7 @@ const retryRounding = 100 * 1e6
 // The text names the budget and the retry delay and nothing else: no principal
 // identifier, no tool name, no upstream detail.
 func ErrorResult(result Result) *mcp.CallToolResult {
-	text := result.Reason
-	if text == "" {
-		text = "the " + result.Kind.String() + " rate-limit budget for this account is exhausted"
-	}
+	text := cmp.Or(result.Reason, "the "+result.Kind.String()+" rate-limit budget for this account is exhausted")
 	text = "Rate limit reached. " + text + "."
 	if result.RetryAfter > 0 {
 		text += " Retry after " + result.RetryAfter.Round(retryRounding).String() + "."

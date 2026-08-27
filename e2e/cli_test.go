@@ -5,6 +5,7 @@ package e2e
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -87,9 +88,7 @@ func offlineCommand(bin string, args ...string) *exec.Cmd {
 // offlineCommandWithProxy is offlineCommand with the outbound proxy under the
 // caller's control. An empty proxyURL keeps the default blackhole.
 func offlineCommandWithProxy(bin, proxyURL string, args ...string) *exec.Cmd {
-	if proxyURL == "" {
-		proxyURL = blackholeProxy
-	}
+	proxyURL = cmp.Or(proxyURL, blackholeProxy)
 	command := exec.Command(bin, args...)
 	command.Env = append(filteredEnviron(), offlineEnvWithProxy(proxyURL)...)
 	return command
@@ -117,11 +116,11 @@ func runWithEnv(t *testing.T, bin string, env []string, args ...string) (stdout,
 
 	err := cmd.Run()
 
-	var exitErr *exec.ExitError
+	exitErr, isExit := errors.AsType[*exec.ExitError](err)
 	switch {
 	case err == nil:
 		code = 0
-	case errors.As(err, &exitErr):
+	case isExit:
 		code = exitErr.ExitCode()
 	default:
 		t.Fatalf("run %v: %v", args, err)
@@ -219,8 +218,8 @@ func waitStdioSession(t *testing.T, cmd *exec.Cmd, stderr *bytes.Buffer) {
 	// SDK may report peer EOF as exit 1 after valid frames; no other nonzero exit is accepted.
 	err := cmd.Wait()
 	if err != nil {
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 ||
+		exitErr, isExit := errors.AsType[*exec.ExitError](err)
+		if !isExit || exitErr.ExitCode() != 1 ||
 			!strings.Contains(stderr.String(), "server is closing: EOF") {
 			t.Fatalf("stdio session: %v (stderr %q)", err, stderr.String())
 		}

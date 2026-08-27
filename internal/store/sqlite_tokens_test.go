@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -24,7 +23,7 @@ func rotation(presented store.Secret, nextAccess, nextRefresh string) store.Refr
 func TestIssueTokenFamilyAndLookupAccessToken(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	access, err := opened.LookupAccessToken(ctx, grant.access)
@@ -54,7 +53,7 @@ func TestIssueTokenFamilyAndLookupAccessToken(t *testing.T) {
 func TestAccessAndRefreshTokensAreNotInterchangeable(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	_, err := opened.LookupAccessToken(ctx, grant.refresh)
@@ -71,7 +70,7 @@ func TestAccessAndRefreshTokensAreNotInterchangeable(t *testing.T) {
 func TestLookupAccessTokenRefusesUnknownAndAbsentMaterial(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	seedGrant(t, opened)
 
 	_, err := opened.LookupAccessToken(ctx, store.NewSecret("never-issued"))
@@ -89,7 +88,7 @@ func TestLookupAccessTokenRefusesUnknownAndAbsentMaterial(t *testing.T) {
 func TestExpiredAccessTokenIsRefusedBeforeCleanupRuns(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	if _, err := opened.LookupAccessToken(ctx, grant.access); err != nil {
@@ -108,7 +107,7 @@ func TestExpiredAccessTokenIsRefusedBeforeCleanupRuns(t *testing.T) {
 func TestIssueTokenFamilyRequiresAnActiveConsent(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 
@@ -137,7 +136,7 @@ func TestIssueTokenFamilyRequiresAnActiveConsent(t *testing.T) {
 func TestIssueTokenFamilyRefusesBadGrants(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	base := func() store.TokenGrant {
@@ -179,7 +178,7 @@ func TestIssueTokenFamilyRefusesBadGrants(t *testing.T) {
 func TestReusingTokenMaterialIsRefused(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	_, err := opened.IssueTokenFamily(ctx, store.TokenGrant{
@@ -200,7 +199,7 @@ func TestReusingTokenMaterialIsRefused(t *testing.T) {
 func TestRotateRefreshTokenIssuesTheNextGeneration(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	next := rotation(grant.refresh, "second-generation-access", "second-generation-refresh")
@@ -239,7 +238,7 @@ func TestRotateRefreshTokenIssuesTheNextGeneration(t *testing.T) {
 func TestReplayingARotatedRefreshTokenRevokesTheWholeFamily(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	next := rotation(grant.refresh, "generation-two-access", "generation-two-refresh")
@@ -281,7 +280,7 @@ func TestReplayingARotatedRefreshTokenRevokesTheWholeFamily(t *testing.T) {
 func TestRotateRefreshTokenRefusesAnExpiredToken(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	// The seeded refresh lifetime is 24 hours.
@@ -297,7 +296,7 @@ func TestRotateRefreshTokenRefusesAnExpiredToken(t *testing.T) {
 func TestRotateRefreshTokenRefusesUnknownMaterial(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	seedGrant(t, opened)
 
 	_, err := opened.RotateRefreshToken(ctx,
@@ -314,7 +313,7 @@ func TestRotateRefreshTokenRefusesUnknownMaterial(t *testing.T) {
 func TestRevokeTokenFamilyIsIdempotent(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	first, err := opened.RevokeTokenFamily(ctx, grant.familyID, "operator_revoked")
@@ -341,7 +340,7 @@ func TestRevokeTokenFamilyIsIdempotent(t *testing.T) {
 func TestRevokeTokenFamilyRefusesBadInput(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	_, err := opened.RevokeTokenFamily(ctx,
@@ -377,7 +376,7 @@ func TestRevokeTokenFamilyRefusesBadInput(t *testing.T) {
 func TestRotateRefreshTokenPersistsTheNarrowedScopeSet(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)

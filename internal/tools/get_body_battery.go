@@ -171,6 +171,5 @@ func durationMinutes(millis client.Number) *float64 {
 	if !ok {
 		return nil
 	}
-	minutes := math.Round(value/millisecondsPerMinute*10) / 10
-	return &minutes
+	return new(math.Round(value/millisecondsPerMinute*10) / 10)
 }

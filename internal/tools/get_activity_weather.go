@@ -112,6 +112,5 @@ func toCelsius(value *float64) *float64 {
 	if value == nil {
 		return nil
 	}
-	converted := (*value - fahrenheitBase) * fahrenheitScale
-	return &converted
+	return new((*value - fahrenheitBase) * fahrenheitScale)
 }

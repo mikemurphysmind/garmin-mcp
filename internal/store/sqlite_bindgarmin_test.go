@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"sync"
@@ -16,7 +15,7 @@ import (
 func TestBindGarminAccountEndToEnd(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	account := store.NewSecret(testGarminAccount)
 
 	first, err := opened.BindGarminAccount(ctx, store.GarminBindInput{
@@ -79,7 +78,7 @@ func TestBindGarminAccountEndToEnd(t *testing.T) {
 func TestBindGarminAccountRollsBackOnTokenSaveFailure(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	account := store.NewSecret(testGarminAccount)
 
 	_, err := opened.BindGarminAccount(ctx, store.GarminBindInput{
@@ -108,7 +107,7 @@ func TestBindGarminAccountRollsBackOnTokenSaveFailure(t *testing.T) {
 func TestBindGarminAccountRollsBackOnLinkFailure(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	account := store.NewSecret(testGarminAccount)
 
 	// A display name over the stored identity's length limit fails sealing the
@@ -141,7 +140,7 @@ func TestBindGarminAccountRollsBackOnLinkFailure(t *testing.T) {
 func TestBindGarminAccountReturningPrincipalKeepsItsTokensOnFailure(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	account := store.NewSecret(testGarminAccount)
 
 	bound, err := opened.BindGarminAccount(ctx, store.GarminBindInput{
@@ -182,7 +181,7 @@ func TestBindGarminAccountReturningPrincipalKeepsItsTokensOnFailure(t *testing.T
 func TestBindGarminAccountConcurrentLoginsElectOnePrincipal(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	account := store.NewSecret(testGarminAccount)
 
 	emails := []string{"first@example.com", "second@example.com"}
@@ -244,7 +243,7 @@ func TestBindGarminAccountConcurrentLoginsElectOnePrincipal(t *testing.T) {
 func TestBindGarminAccountRefusesAZeroAccount(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := opened.BindGarminAccount(ctx, store.GarminBindInput{
 		Email:  testEmail,
@@ -273,7 +272,7 @@ func TestBindGarminAccountRefusesAZeroAccount(t *testing.T) {
 func TestBindGarminAccountRefusesToRebindAPrincipalToAnotherAccount(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	const sharedEmail = "shared@example.test"
 	first, err := opened.BindGarminAccount(ctx, store.GarminBindInput{

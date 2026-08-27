@@ -27,8 +27,7 @@ func sealSecret(value string) *secretString {
 	if value == "" {
 		return nil
 	}
-	sealed := secretString(value)
-	return &sealed
+	return new(secretString(value))
 }
 
 // revealSecret returns the sealed value, or "" when none is held. It is the only way

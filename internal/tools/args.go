@@ -234,8 +234,7 @@ func optionalInt(number client.Number) *int {
 	if !ok {
 		return nil
 	}
-	out := int(value)
-	return &out
+	return new(int(value))
 }
 
 // optionalInt64 renders a union-decoded number as an optional 64-bit integer.

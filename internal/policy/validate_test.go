@@ -1,7 +1,6 @@
 package policy_test
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -188,7 +187,7 @@ func TestPolicyDoesNotAliasTheCallerConfiguration(t *testing.T) {
 	cfg.Denylist = append(cfg.Denylist, readTool)
 	cfg.ReadOnlyTools[0] = "mutated"
 
-	if decision := p.Decide(context.Background(), readTool); !decision.Allowed {
+	if decision := p.Decide(t.Context(), readTool); !decision.Allowed {
 		t.Fatalf("mutating the caller's Config changed an existing policy: %v", decision.Err)
 	}
 }

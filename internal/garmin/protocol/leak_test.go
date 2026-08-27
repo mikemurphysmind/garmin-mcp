@@ -9,7 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -185,7 +185,7 @@ func methodNames(typ reflect.Type) []string {
 	for method := range typ.Methods() {
 		out = append(out, method.Name)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

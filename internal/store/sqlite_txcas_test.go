@@ -2,7 +2,6 @@ package store_test
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"os"
 	"strconv"
@@ -25,7 +24,7 @@ const testClientState = `opaque client state {"nonce":"abc"} +/=`
 func seedRichTransaction(t *testing.T, s *store.SQLiteStore, clientID string) store.Secret {
 	t.Helper()
 	handle := store.NewSecret("rich-" + testHandle)
-	err := s.PutAuthTransaction(context.Background(), store.AuthTransactionDraft{
+	err := s.PutAuthTransaction(t.Context(), store.AuthTransactionDraft{
 		Handle:        handle,
 		ClientID:      clientID,
 		RedirectURI:   testRedirectURI,
@@ -47,7 +46,7 @@ func seedRichTransaction(t *testing.T, s *store.SQLiteStore, clientID string) st
 func TestTransactionCarriesResourceAndClientState(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 	handle := seedRichTransaction(t, opened, client.ID)
 
@@ -93,7 +92,7 @@ func TestClientStateIsNotOnDiskInTheClear(t *testing.T) {
 func TestUpdateAuthTransactionIsACompareAndSet(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 	handle := seedRichTransaction(t, opened, client.ID)
@@ -133,7 +132,7 @@ func TestUpdateAuthTransactionIsACompareAndSet(t *testing.T) {
 func TestUpdateAuthTransactionSeparatesGoneFromAdvanced(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 	handle := seedRichTransaction(t, opened, client.ID)
 
@@ -160,7 +159,7 @@ func TestUpdateAuthTransactionSeparatesGoneFromAdvanced(t *testing.T) {
 func TestUpdateAuthTransactionAcceptsAnEmptyScopeSetAndNoResource(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 	handle := seedRichTransaction(t, opened, client.ID)
 
@@ -187,7 +186,7 @@ func TestUpdateAuthTransactionAcceptsAnEmptyScopeSetAndNoResource(t *testing.T) 
 func TestConsumeAuthTransactionReturnsAndDeletes(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 	handle := seedRichTransaction(t, opened, client.ID)
 
@@ -214,7 +213,7 @@ func TestConsumeAuthTransactionReturnsAndDeletes(t *testing.T) {
 func TestConsumeAuthTransactionReturnsAnExpiredRecord(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 	handle := seedRichTransaction(t, opened, client.ID)
 
@@ -243,7 +242,7 @@ func TestConsumeAuthTransactionReturnsAnExpiredRecord(t *testing.T) {
 func TestConcurrentConsumeAuthTransactionElectsOneWinner(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 	handle := seedRichTransaction(t, opened, client.ID)
 
@@ -269,7 +268,7 @@ func TestConcurrentConsumeAuthTransactionElectsOneWinner(t *testing.T) {
 func TestConcurrentUpdateAuthTransactionElectsOneWinner(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 	handle := seedRichTransaction(t, opened, client.ID)
 

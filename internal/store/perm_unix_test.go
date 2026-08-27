@@ -3,7 +3,6 @@
 package store
 
 import (
-	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -38,7 +37,7 @@ func assertOwnerOnly(t *testing.T, path string, want os.FileMode) {
 func TestSaveCreatesOwnerOnlyFilesInOwnerOnlyDirectories(t *testing.T) {
 	store, dir := newTestStore(t)
 
-	if _, err := store.Save(context.Background(), testPrincipal, newTestTokens(), 0); err != nil {
+	if _, err := store.Save(t.Context(), testPrincipal, newTestTokens(), 0); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 
@@ -113,7 +112,7 @@ func TestHostileUmaskChild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFileStore: %v", err)
 	}
-	if _, err := store.Save(context.Background(), testPrincipal, newTestTokens(), 0); err != nil {
+	if _, err := store.Save(t.Context(), testPrincipal, newTestTokens(), 0); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 	assertOwnerOnly(t, store.recordPath(testPrincipal), 0o600)
@@ -122,7 +121,7 @@ func TestHostileUmaskChild(t *testing.T) {
 
 func TestLoadRefusesAGroupOrWorldReadableRecord(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, err := store.Save(ctx, testPrincipal, newTestTokens(), 0); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -153,7 +152,7 @@ func TestSaveRefusesASymlinkedRecordPath(t *testing.T) {
 		t.Skipf("symlink unsupported: %v", err)
 	}
 
-	_, err := store.Save(context.Background(), testPrincipal, newTestTokens(), 0)
+	_, err := store.Save(t.Context(), testPrincipal, newTestTokens(), 0)
 	if !errors.Is(err, ErrInsecurePath) {
 		t.Fatalf("Save onto a symlink: err = %v, want ErrInsecurePath", err)
 	}

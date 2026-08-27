@@ -1,7 +1,6 @@
 package cmd_test
 
 import (
-	"context"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -45,7 +44,7 @@ func openRevocationSeedStore(t *testing.T, stateDir string) (*store.SQLiteStore,
 	}
 
 	dbPath := filepath.Join(stateDir, "state.db")
-	opened, err := store.OpenSQLite(context.Background(), store.SQLiteConfig{
+	opened, err := store.OpenSQLite(t.Context(), store.SQLiteConfig{
 		Path: dbPath,
 		Key:  key,
 	})
@@ -70,7 +69,7 @@ type linkedTestPrincipal struct {
 // over.
 func seedLinkedPrincipal(t *testing.T, s *store.SQLiteStore, label string) linkedTestPrincipal {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	principal, err := s.CreatePrincipal(ctx, label+"@example.test")
 	if err != nil {
@@ -141,7 +140,7 @@ func TestUnlinkRemovesTheGarminLinkageAndLeavesOtherPrincipalsAlone(t *testing.T
 	}
 
 	verify, _ := openRevocationSeedStore(t, stateDir)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, _, err := verify.Load(ctx, target.ID); !errors.Is(err, store.ErrNoTokens) {
 		t.Errorf("target's Garmin token record: err = %v, want ErrNoTokens", err)
@@ -266,7 +265,7 @@ func TestRevokeKillsTokensAndConsentsButLeavesTheGarminLinkIntact(t *testing.T) 
 	}
 
 	verify, _ := openRevocationSeedStore(t, stateDir)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, _, err := verify.Load(ctx, target.ID); err != nil {
 		t.Errorf("revoke removed the Garmin token record: %v", err)

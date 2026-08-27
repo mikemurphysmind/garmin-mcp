@@ -133,8 +133,8 @@ func assertTransitionError(t *testing.T, err error, from auth.State, tr auth.Tra
 		t.Errorf("%s + %s: error %v does not match ErrInvalidTransition", from, tr, err)
 	}
 
-	var te *auth.TransitionError
-	if !errors.As(err, &te) {
+	te, ok := errors.AsType[*auth.TransitionError](err)
+	if !ok {
 		t.Fatalf("%s + %s: error %v is not a *TransitionError", from, tr, err)
 	}
 	if te.From != from || te.Transition != tr {

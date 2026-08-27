@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cmp"
 	"fmt"
 	"time"
 
@@ -224,10 +225,7 @@ func expandPlanned(
 
 // plannedRepeat resolves and bounds the repeat count.
 func plannedRepeat(planned PlannedSet) (int, error) {
-	repeat := planned.Repeat
-	if repeat == 0 {
-		repeat = 1
-	}
+	repeat := cmp.Or(planned.Repeat, 1)
 	if repeat < 0 || repeat > MaxSetRepeat {
 		return 0, fmt.Errorf("%w: a set may repeat between 1 and %d times",
 			client.ErrValidation, MaxSetRepeat)
@@ -250,10 +248,7 @@ func plannedStart(planStart, cursor time.Time, planned PlannedSet) time.Time {
 
 // plannedSet renders one occurrence of a planned set at an instant.
 func plannedSet(planned PlannedSet, at time.Time) StrengthSet {
-	kind := planned.Kind
-	if kind == "" {
-		kind = SetActive
-	}
+	kind := cmp.Or(planned.Kind, SetActive)
 	if kind == SetRest {
 		return StrengthSet{Kind: SetRest, Start: at, DurationSeconds: planned.DurationSeconds}
 	}

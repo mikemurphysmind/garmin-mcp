@@ -177,7 +177,7 @@ func (a *ActivityWrites) SetEventType(
 
 	type eventDTO struct {
 		TypeKey string `json:"typeKey"`
-		TypeID  int64  `json:"typeId,omitempty"`
+		TypeID  int64  `json:"typeId,omitzero"`
 	}
 	body, err := jsonBody(req, struct {
 		ActivityID string   `json:"activityId"`

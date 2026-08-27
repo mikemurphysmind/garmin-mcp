@@ -70,8 +70,8 @@ func TestDecodeJSONReportsMalformedPayloadWithoutEchoingIt(t *testing.T) {
 		t.Fatalf("DecodeJSON() = %v, want ErrMalformedPayload", err)
 	}
 
-	var apiErr *client.APIError
-	if !errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[*client.APIError](err)
+	if !ok {
 		t.Fatal("the failure is not an *APIError")
 	}
 	if apiErr.Endpoint != client.EndpointSocialProfile || apiErr.Op != client.OpGetSocialProfile {

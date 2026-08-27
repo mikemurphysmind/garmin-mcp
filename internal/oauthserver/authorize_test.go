@@ -1,7 +1,6 @@
 package oauthserver
 
 import (
-	"context"
 	"errors"
 	"net/url"
 	"strings"
@@ -23,13 +22,13 @@ func validAuthorizeRequest() AuthorizeRequest {
 
 func (h *harness) begin(t *testing.T, req AuthorizeRequest) (Authorization, error) {
 	t.Helper()
-	return h.srv.BeginAuthorization(context.Background(), req)
+	return h.srv.BeginAuthorization(t.Context(), req)
 }
 
 func asAuthorizeError(t *testing.T, err error) *AuthorizeError {
 	t.Helper()
-	var authErr *AuthorizeError
-	if !errors.As(err, &authErr) {
+	authErr, ok := errors.AsType[*AuthorizeError](err)
+	if !ok {
 		t.Fatalf("error is not an *AuthorizeError: %v", err)
 	}
 	return authErr
@@ -53,7 +52,7 @@ func TestBeginAuthorizationCreatesATransaction(t *testing.T) {
 		t.Fatalf("stored %d transactions, want 1", h.store.transactionCount())
 	}
 
-	tx, err := h.store.Transaction(context.Background(), got.Capability.Lookup())
+	tx, err := h.store.Transaction(t.Context(), got.Capability.Lookup())
 	if err != nil {
 		t.Fatalf("the transaction is not addressed by the capability digest: %v", err)
 	}

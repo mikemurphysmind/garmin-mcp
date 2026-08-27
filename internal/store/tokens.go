@@ -111,8 +111,7 @@ type tokenParts struct {
 
 // heldSecret wraps value so it can be stored behind a pointer.
 func heldSecret(value string) *secret {
-	held := secret(value)
-	return &held
+	return new(secret(value))
 }
 
 // secretValue reads a held value, reporting "" for an absent one.

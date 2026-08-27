@@ -18,7 +18,7 @@ func TestNewStdioResolverBindsExactlyOnePrincipal(t *testing.T) {
 		t.Fatalf("NewStdioResolver returned error: %v", err)
 	}
 
-	got, err := resolver.Resolve(context.Background())
+	got, err := resolver.Resolve(t.Context())
 	if err != nil {
 		t.Fatalf("Resolve returned error: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestStdioResolverIgnoresRequestScopedInput(t *testing.T) {
 		t.Fatalf("NewPrincipal returned error: %v", err)
 	}
 
-	ctx := identity.WithPrincipal(context.Background(), attacker)
+	ctx := identity.WithPrincipal(t.Context(), attacker)
 
 	got, err := resolver.Resolve(ctx)
 	if err != nil {
@@ -131,7 +131,7 @@ func TestToolArgumentsCannotSelectThePrincipal(t *testing.T) {
 		"account_index": "1",
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	for name, value := range hostileArguments {
 		ctx = context.WithValue(ctx, argKey{name}, value)
 	}
@@ -161,7 +161,7 @@ func TestStdioResolverIsSafeForConcurrentUse(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 64 {
 		wg.Go(func() {
-			got, resolveErr := resolver.Resolve(context.Background())
+			got, resolveErr := resolver.Resolve(t.Context())
 			if resolveErr != nil || got.ID() != boundPrincipalID {
 				t.Errorf("Resolve() = %v, %v; want bound principal and no error", got, resolveErr)
 			}
@@ -179,7 +179,7 @@ func TestStdioResolverSatisfiesResolver(t *testing.T) {
 	}
 
 	var asInterface identity.Resolver = resolver
-	if _, err := asInterface.Resolve(context.Background()); err != nil {
+	if _, err := asInterface.Resolve(t.Context()); err != nil {
 		t.Fatalf("Resolve through the interface returned error: %v", err)
 	}
 }

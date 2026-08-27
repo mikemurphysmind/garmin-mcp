@@ -201,7 +201,7 @@ func TestAllFourAnnotationHintsAreDeclaredExplicitly(t *testing.T) {
 
 	server := newTestServer(t, depsWithEcho(t))
 
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	tools, err := session.ListTools(ctx, &mcp.ListToolsParams{})

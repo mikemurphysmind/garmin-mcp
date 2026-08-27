@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -22,7 +21,7 @@ const (
 func seedTransaction(t *testing.T, s *store.SQLiteStore, clientID string) store.Secret {
 	t.Helper()
 	handle := store.NewSecret(testHandle)
-	err := s.PutAuthTransaction(context.Background(), store.AuthTransactionDraft{
+	err := s.PutAuthTransaction(t.Context(), store.AuthTransactionDraft{
 		Handle:        handle,
 		ClientID:      clientID,
 		RedirectURI:   testRedirectURI,
@@ -40,7 +39,7 @@ func seedTransaction(t *testing.T, s *store.SQLiteStore, clientID string) store.
 func seedCode(t *testing.T, s *store.SQLiteStore, principalID, clientID, material string) store.Secret {
 	t.Helper()
 	code := store.NewSecret(material)
-	err := s.PutAuthCode(context.Background(), store.AuthCodeDraft{
+	err := s.PutAuthCode(t.Context(), store.AuthCodeDraft{
 		Code:          code,
 		PrincipalID:   principalID,
 		ClientID:      clientID,
@@ -59,7 +58,7 @@ func seedCode(t *testing.T, s *store.SQLiteStore, principalID, clientID, materia
 func TestAuthTransactionRoundTripAndPrincipalAttachment(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 	principal := seedPrincipal(t, opened)
 	handle := seedTransaction(t, opened, client.ID)
@@ -107,7 +106,7 @@ func TestAuthTransactionRoundTripAndPrincipalAttachment(t *testing.T) {
 func TestExpiredTransactionIsNeverReturnedBeforeCleanup(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 	principal := seedPrincipal(t, opened)
 	handle := seedTransaction(t, opened, client.ID)
@@ -127,7 +126,7 @@ func TestExpiredTransactionIsNeverReturnedBeforeCleanup(t *testing.T) {
 func TestPutAuthTransactionRefusesBadInput(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, opened)
 
 	base := func() store.AuthTransactionDraft {
@@ -176,7 +175,7 @@ func TestPutAuthTransactionRefusesAReusedHandle(t *testing.T) {
 	client := seedClient(t, opened)
 	seedTransaction(t, opened, client.ID)
 
-	err := opened.PutAuthTransaction(context.Background(), store.AuthTransactionDraft{
+	err := opened.PutAuthTransaction(t.Context(), store.AuthTransactionDraft{
 		Handle:        store.NewSecret(testHandle),
 		ClientID:      client.ID,
 		RedirectURI:   testRedirectURI,
@@ -192,7 +191,7 @@ func TestPutAuthTransactionRefusesAReusedHandle(t *testing.T) {
 func TestConsumeAuthCodeRedeemsExactlyOnce(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 	code := seedCode(t, opened, principal.ID, client.ID, testCode)
@@ -223,7 +222,7 @@ func TestConsumeAuthCodeRedeemsExactlyOnce(t *testing.T) {
 func TestExpiredAuthCodeIsNeverRedeemedBeforeCleanup(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 	code := seedCode(t, opened, principal.ID, client.ID, testCode)
@@ -238,7 +237,7 @@ func TestExpiredAuthCodeIsNeverRedeemedBeforeCleanup(t *testing.T) {
 func TestConsumeAuthCodeRefusesUnknownMaterial(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := opened.ConsumeAuthCode(ctx, store.NewSecret("never-issued"))
 	if !errors.Is(err, store.ErrCodeNotFound) {
@@ -252,7 +251,7 @@ func TestConsumeAuthCodeRefusesUnknownMaterial(t *testing.T) {
 func TestPutAuthCodeRefusesBadInput(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 

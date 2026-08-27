@@ -1,7 +1,6 @@
 package cmd_test
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"os"
@@ -44,7 +43,7 @@ func schemaVersionOf(t *testing.T, path string) int {
 	}
 	defer func() { _ = db.Close() }()
 
-	version, err := store.SchemaVersion(context.Background(), db)
+	version, err := store.SchemaVersion(t.Context(), db)
 	if err != nil {
 		t.Fatalf("reading the schema version: %v", err)
 	}
@@ -219,7 +218,7 @@ func TestMigrateLeavesTheDatabaseUsableByTheStore(t *testing.T) {
 	}
 	defer func() { _ = db.Close() }()
 
-	result, err := store.Migrate(context.Background(), db, migrations.FS())
+	result, err := store.Migrate(t.Context(), db, migrations.FS())
 	if err != nil {
 		t.Fatalf("re-running the migrator: %v", err)
 	}
@@ -234,8 +233,8 @@ func assertTableExists(t *testing.T, db *sql.DB, table string) {
 	t.Helper()
 
 	var name string
-	err := db.QueryRowContext(context.Background(),
-		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name)
+	const query = `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`
+	err := db.QueryRowContext(t.Context(), query, table).Scan(&name)
 	if err != nil {
 		t.Fatalf("table %q is missing: %v", table, err)
 	}

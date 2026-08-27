@@ -133,8 +133,8 @@ func TestWellnessStressViewsShareOneURLAndDifferOnlyInTheOperation(t *testing.T)
 		_, err := newStressClient(t, h).DailyStress(t.Context(), h.session,
 			mustDate(t, testCalendarDate), view)
 
-		var apiErr *client.APIError
-		if !errors.As(err, &apiErr) {
+		apiErr, ok := errors.AsType[*client.APIError](err)
+		if !ok {
 			t.Fatalf("view %v failed with %v, want an *APIError", view, err)
 		}
 		if apiErr.Op != wantOp {

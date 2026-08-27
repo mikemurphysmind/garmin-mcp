@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"io/fs"
@@ -36,7 +35,7 @@ func tableExists(t *testing.T, db *sql.DB, name string) bool {
 
 func TestMigrateAppliesTheEmbeddedSetAndReportsItsVersion(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	db := newTestDB(t)
 
 	result, err := store.Migrate(ctx, db, migrations.FS())
@@ -67,7 +66,7 @@ func TestMigrateAppliesTheEmbeddedSetAndReportsItsVersion(t *testing.T) {
 
 func TestMigrateIsIdempotent(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	db := newTestDB(t)
 
 	first, err := store.Migrate(ctx, db, migrations.FS())
@@ -92,7 +91,7 @@ func TestMigrateIsIdempotent(t *testing.T) {
 // may survive, and the recorded version must stay at the last good one.
 func TestFailingMigrationIsAtomic(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	db := newTestDB(t)
 
 	set := migrationFS(map[string]string{
@@ -126,7 +125,7 @@ func TestFailingMigrationIsAtomic(t *testing.T) {
 // refuse, not run against a schema it does not understand.
 func TestMigrateRefusesADatabaseNewerThanTheBinary(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	db := newTestDB(t)
 
 	newer := migrationFS(map[string]string{
@@ -151,7 +150,7 @@ func TestMigrateRefusesADatabaseNewerThanTheBinary(t *testing.T) {
 // build cannot reproduce.
 func TestMigrateRefusesAnAlteredAppliedMigration(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	db := newTestDB(t)
 
 	original := migrationFS(map[string]string{
@@ -172,7 +171,7 @@ func TestMigrateRefusesAnAlteredAppliedMigration(t *testing.T) {
 
 func TestMigrateRefusesAMalformedSet(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	cases := map[string]map[string]string{
 		"a gap in the sequence": {
@@ -234,7 +233,7 @@ func TestEmbeddedMigrationSetIsWellFormed(t *testing.T) {
 // the empty resource, which is what a row written under the narrow key meant.
 func TestMigratingAnExistingDatabaseKeepsItsConsents(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	db := newTestDB(t)
 
 	initial, err := fs.ReadFile(migrations.FS(), "0001_initial.sql")

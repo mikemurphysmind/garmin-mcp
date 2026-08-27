@@ -65,8 +65,8 @@ func TestErrorWrapsCause(t *testing.T) {
 		t.Fatal("errors.Is did not reach the wrapped cause")
 	}
 
-	var target *Error
-	if !errors.As(fmt.Errorf("outer: %w", err), &target) {
+	target, ok := errors.AsType[*Error](fmt.Errorf("outer: %w", err))
+	if !ok {
 		t.Fatal("errors.As failed through an outer wrapper")
 	}
 	if target.Endpoint != EndpointMobileLogin {
@@ -133,8 +133,8 @@ func TestErrorMessageRedactsWrappedURLError(t *testing.T) {
 	}
 
 	// Unwrap must still reach the real cause for errors.Is/errors.As.
-	var target *url.Error
-	if !errors.As(err, &target) || target.URL != cause.URL {
+	target, ok := errors.AsType[*url.Error](err)
+	if !ok || target.URL != cause.URL {
 		t.Fatal("errors.As must still reach the wrapped *url.Error")
 	}
 }

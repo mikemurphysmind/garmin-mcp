@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -13,7 +12,7 @@ import (
 // the access token it minted.
 func issueFor(t *testing.T, s *store.SQLiteStore, principalID, clientID, label string) store.Secret {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	if err := s.GrantConsent(ctx, principalID, clientID, []string{testScope}); err != nil {
 		t.Fatalf("GrantConsent for %s: %v", label, err)
 	}
@@ -40,7 +39,7 @@ func issueFor(t *testing.T, s *store.SQLiteStore, principalID, clientID, label s
 func TestRevokeConsentRevokesThatClientsFamiliesOnly(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	other, err := opened.RegisterClient(ctx, store.ClientRegistration{
@@ -101,7 +100,7 @@ func TestRevokeConsentRevokesThatClientsFamiliesOnly(t *testing.T) {
 func TestRevokeConsentIsIdempotent(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	if _, err := opened.RevokeConsent(ctx, grant.principal.ID, grant.client.ID); err != nil {
@@ -131,7 +130,7 @@ func TestRevokeConsentIsIdempotent(t *testing.T) {
 func TestRevokeConsentDoesNotTouchTheGarminTokens(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	if _, err := opened.Save(ctx, grant.principal.ID, newSQLTestTokens(), 0); err != nil {
@@ -152,7 +151,7 @@ func TestRevokeConsentDoesNotTouchTheGarminTokens(t *testing.T) {
 func TestUnlinkGarminAccountCascadesEverything(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	err := opened.LinkGarminAccount(ctx, grant.principal.ID, store.GarminIdentity{
@@ -190,7 +189,7 @@ func TestUnlinkGarminAccountCascadesEverything(t *testing.T) {
 // assertFullyUnlinked checks every consequence of an unlink through the public API.
 func assertFullyUnlinked(t *testing.T, opened *store.SQLiteStore, grant seededGrant) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, err := opened.LookupAccessToken(ctx, grant.access); !errors.Is(err, store.ErrTokenRevoked) {
 		t.Errorf("access token: err = %v, want ErrTokenRevoked", err)
@@ -227,7 +226,7 @@ func assertFullyUnlinked(t *testing.T, opened *store.SQLiteStore, grant seededGr
 func TestUnlinkGarminAccountIsIdempotentAndChecksThePrincipal(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	if _, err := opened.UnlinkGarminAccount(ctx, grant.principal.ID); err != nil {
@@ -254,7 +253,7 @@ func TestUnlinkGarminAccountIsIdempotentAndChecksThePrincipal(t *testing.T) {
 func TestUnlinkLeavesOtherPrincipalsAlone(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	bystander, err := opened.CreatePrincipal(ctx, "bystander@example.com")

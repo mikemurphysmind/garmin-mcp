@@ -14,7 +14,7 @@ func TestDestructiveToolFailsClosedWhenTheClientCannotBeAsked(t *testing.T) {
 	t.Parallel()
 
 	server, probes, _ := tieredServer(t, destructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -39,7 +39,7 @@ func TestLocalDestructiveToolFailsClosedWhenTheClientCannotBeAsked(t *testing.T)
 	t.Parallel()
 
 	server, probes, _ := tieredServer(t, localDestructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -64,7 +64,7 @@ func TestDestructiveToolIsRefusedWhenTheUserDeclines(t *testing.T) {
 	t.Parallel()
 
 	server, probes, _ := tieredServer(t, destructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, &mcp.ClientOptions{
 		ElicitationHandler: func(context.Context, *mcp.ElicitRequest) (*mcp.ElicitResult, error) {
 			return &mcp.ElicitResult{Action: "decline"}, nil
@@ -94,7 +94,7 @@ func TestDestructiveToolIsRefusedWhenTheUserDismisses(t *testing.T) {
 	t.Parallel()
 
 	server, probes, _ := tieredServer(t, destructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, &mcp.ClientOptions{
 		ElicitationHandler: func(context.Context, *mcp.ElicitRequest) (*mcp.ElicitResult, error) {
 			return &mcp.ElicitResult{Action: "cancel"}, nil
@@ -121,7 +121,7 @@ func TestDestructiveToolRunsOnlyAfterAnAcceptedConfirmation(t *testing.T) {
 	t.Parallel()
 
 	server, probes, _ := tieredServer(t, destructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var asked int
 	session := connectClient(t, ctx, server, &mcp.ClientOptions{
@@ -157,7 +157,7 @@ func TestWriteToolDoesNotRequireConfirmation(t *testing.T) {
 	t.Parallel()
 
 	server, probes, _ := tieredServer(t, destructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 
 	asked := 0
 	session := connectClient(t, ctx, server, &mcp.ClientOptions{
@@ -213,7 +213,7 @@ func TestAnAcceptedFormWithoutATrueConfirmIsRefused(t *testing.T) {
 			t.Parallel()
 
 			server, probes, _ := tieredServer(t, destructiveEnabled(t))
-			ctx := context.Background()
+			ctx := t.Context()
 			session := connectClient(t, ctx, server, &mcp.ClientOptions{
 				ElicitationHandler: func(context.Context, *mcp.ElicitRequest) (*mcp.ElicitResult, error) {
 					return &mcp.ElicitResult{Action: actionAccept, Content: tc.content}, nil
@@ -248,7 +248,7 @@ func TestTheConfirmationSchemaRequiresTheField(t *testing.T) {
 
 	var asked *mcp.ElicitRequest
 	server, _, _ := tieredServer(t, destructiveEnabled(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, &mcp.ClientOptions{
 		ElicitationHandler: func(_ context.Context, req *mcp.ElicitRequest) (*mcp.ElicitResult, error) {
 			asked = req

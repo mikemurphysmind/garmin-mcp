@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"cmp"
 	"context"
 	"net/url"
 
@@ -40,10 +41,7 @@ type mfaTarget struct {
 // MFADeliveryUncertain now means the code may not have been sent rather than that
 // this server never asked.
 func (a *Authenticator) beginMFA(principal string, strategy StrategyName, step stepResult) (Result, error) {
-	method := step.class.MFAMethod()
-	if method == "" {
-		method = protocol.MFAMethodEmail
-	}
+	method := cmp.Or(step.class.MFAMethod(), protocol.MFAMethodEmail)
 
 	pending := NewPending(PendingParams{
 		Principal:            principal,

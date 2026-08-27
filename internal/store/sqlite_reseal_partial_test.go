@@ -26,7 +26,7 @@ func TestResealToActiveKeyReportsPartialProgressOnAnUnreadableRow(t *testing.T) 
 	oldKey := mustGenerateKey(t, 1)
 
 	seed := openStoreWithKeys(t, path, oldKey, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, seed)
 	if _, err := seed.Save(ctx, principal.ID, newSQLTestTokens(), 0); err != nil {
 		t.Fatalf("seed Save: %v", err)

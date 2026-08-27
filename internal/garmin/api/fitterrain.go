@@ -1,8 +1,9 @@
 package api
 
 import (
+	"cmp"
 	"math"
-	"sort"
+	"slices"
 	"time"
 )
 
@@ -254,8 +255,8 @@ func temperatureSplit(records []FITRecord) FITTemperature {
 	if len(sorted) < minTemperatureSamples {
 		return FITTemperature{}
 	}
-	sort.SliceStable(sorted, func(a, b int) bool {
-		return sorted[a].Temperature.Value < sorted[b].Temperature.Value
+	slices.SortStableFunc(sorted, func(a, b FITRecord) int {
+		return cmp.Compare(a.Temperature.Value, b.Temperature.Value)
 	})
 
 	quarter := max(len(sorted)/4, 1)

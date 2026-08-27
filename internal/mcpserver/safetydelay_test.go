@@ -81,7 +81,7 @@ func TestSafetyDelayPausesWritesAndDestructivesButNeverReads(t *testing.T) {
 
 			sleeper := &recordingSleeper{}
 			server, probes, _ := tieredServer(t, withSafetyDelay(t, sleeper, testSafetyDelay))
-			ctx := context.Background()
+			ctx := t.Context()
 			session := connectClient(t, ctx, server, confirmingClient())
 
 			if _, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -113,7 +113,7 @@ func TestSafetyDelayOfZeroNeverWaits(t *testing.T) {
 
 	sleeper := &recordingSleeper{}
 	server, probes, _ := tieredServer(t, withSafetyDelay(t, sleeper, 0))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, confirmingClient())
 
 	if _, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -141,7 +141,7 @@ func TestLocalWriteObservesSafetyDelay(t *testing.T) {
 		d.SafetyDelay = testSafetyDelay
 		d.Sleep = sleeper.sleep
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -171,7 +171,7 @@ func TestCancellingDuringTheDelayStopsTheCall(t *testing.T) {
 
 	sleeper := &recordingSleeper{err: context.Canceled}
 	server, probes, _ := tieredServer(t, withSafetyDelay(t, sleeper, testSafetyDelay))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, confirmingClient())
 
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -202,7 +202,7 @@ func TestARefusedCallNeverWaits(t *testing.T) {
 		d.SafetyDelay = testSafetyDelay
 		d.Sleep = sleeper.sleep
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -260,7 +260,7 @@ func TestTheRealWaitIsInterruptible(t *testing.T) {
 		// Deps.Sleep stays nil on purpose: this must be the real wait.
 	})
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	session := connectClient(t, ctx, server, confirmingClient())
 

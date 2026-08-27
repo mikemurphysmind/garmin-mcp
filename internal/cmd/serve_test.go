@@ -2,7 +2,6 @@ package cmd_test
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -57,7 +56,7 @@ func runCommand(t *testing.T, args ...string) (stdout string, err error) {
 		Stdout:    &out,
 		Stderr:    &errOut,
 	})
-	err = root.ExecuteContext(context.Background())
+	err = root.ExecuteContext(t.Context())
 	return out.String(), err
 }
 
@@ -128,7 +127,7 @@ func TestServeStdioFailureWritesNothingToStdout(t *testing.T) {
 	t.Setenv("GARMIN_MCP_MASTER_KEY", "c2VjcmV0LW1hdGVyaWFs")
 
 	var stdout, stderr bytes.Buffer
-	code := cmd.Execute(context.Background(), cmd.Options{
+	code := cmd.Execute(t.Context(), cmd.Options{
 		BuildInfo: cmd.BuildInfo{Version: testVersion, Commit: testCommit},
 		Args:      []string{cmdServe, flagStdio},
 		Stdout:    &stdout,
@@ -160,7 +159,7 @@ func TestServeRemoteFailureIsReportedWithoutStartingAnything(t *testing.T) {
 	t.Setenv("GARMIN_MCP_DATABASE_PATH", filepath.Join(t.TempDir(), "..", "state.db"))
 
 	var stdout, stderr bytes.Buffer
-	code := cmd.Execute(context.Background(), cmd.Options{
+	code := cmd.Execute(t.Context(), cmd.Options{
 		BuildInfo: cmd.BuildInfo{Version: testVersion, Commit: testCommit},
 		Args:      []string{cmdServe},
 		Stdout:    &stdout,
@@ -184,7 +183,7 @@ func TestServeUsageErrorStaysOffStdout(t *testing.T) {
 	clearGarminEnv(t)
 
 	var stdout, stderr bytes.Buffer
-	code := cmd.Execute(context.Background(), cmd.Options{
+	code := cmd.Execute(t.Context(), cmd.Options{
 		Args:   []string{cmdServe, "--not-a-flag"},
 		Stdout: &stdout,
 		Stderr: &stderr,

@@ -275,7 +275,7 @@ func postAndDiscard(
 ) *http.Response {
 	t.Helper()
 
-	ctx, cancel := context.WithTimeout(context.Background(), remoteRequestTimeout)
+	ctx, cancel := context.WithTimeout(t.Context(), remoteRequestTimeout)
 	defer cancel()
 	resp, _ := openMCPStream(t, ctx, client, server, http.MethodPost, token, sessionID, body)
 	return resp
@@ -288,7 +288,7 @@ func postAndDiscard(
 func initializeConfirmSession(t *testing.T, client *http.Client, server remoteServer, token string) string {
 	t.Helper()
 
-	ctx, cancel := context.WithTimeout(context.Background(), remoteRequestTimeout)
+	ctx, cancel := context.WithTimeout(t.Context(), remoteRequestTimeout)
 	defer cancel()
 	body := `{"jsonrpc":"2.0","id":"init","method":"initialize","params":` +
 		`{"protocolVersion":"` + confirmProtocolVersion + `","capabilities":{"elicitation":{}},` +
@@ -347,7 +347,7 @@ func TestDestructiveConfirmationArrivesOnlyOnTheCallersOwnStream(t *testing.T) {
 	// Open the standalone stream every session carries, and read it
 	// continuously in the background: the negative assertion is that nothing
 	// this test does ever produces a message here.
-	getCtx, cancelGet := context.WithCancel(context.Background())
+	getCtx, cancelGet := context.WithCancel(t.Context())
 	defer cancelGet()
 	getResp, getReader := openMCPStream(t, getCtx, client, server, http.MethodGet, token, sessionID, "")
 	defer func() { _ = getResp.Body.Close() }()
@@ -372,8 +372,7 @@ func TestDestructiveConfirmationArrivesOnlyOnTheCallersOwnStream(t *testing.T) {
 	// The destructive call itself. Its own SSE stream is read incrementally
 	// below, so the elicitation request can be observed before the call's
 	// final result exists.
-	postCtx, cancelPost := context.WithTimeout(context.Background(),
-		mcpserver.DefaultConfirmationTimeout+remoteRequestTimeout)
+	postCtx, cancelPost := context.WithTimeout(t.Context(), mcpserver.DefaultConfirmationTimeout+remoteRequestTimeout)
 	defer cancelPost()
 	callBody := `{"jsonrpc":"2.0","id":"delete-weigh-ins-1","method":"tools/call","params":` +
 		`{"name":"` + confirmToolName + `","arguments":{"date":"2024-01-15"}}}`

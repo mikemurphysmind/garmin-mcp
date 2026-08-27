@@ -1,7 +1,6 @@
 package mcpserver_test
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"slices"
@@ -56,7 +55,7 @@ func TestNewAcceptsANilLoggerAndNilLimiter(t *testing.T) {
 		t.Fatalf("New returned error: %v", err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 	if _, err := session.CallTool(ctx, &mcp.CallToolParams{Name: mcpserver.ServerInfoToolName}); err != nil {
 		t.Fatalf("CallTool returned error: %v", err)
@@ -79,7 +78,7 @@ func TestServerInfoToolIsCallableEndToEnd(t *testing.T) {
 	t.Parallel()
 
 	server := newTestServer(t, testDeps(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: mcpserver.ServerInfoToolName})
@@ -122,7 +121,7 @@ func TestServerInfoDisclosesNoAccountData(t *testing.T) {
 	t.Parallel()
 
 	server := newTestServer(t, testDeps(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: mcpserver.ServerInfoToolName})
@@ -225,7 +224,7 @@ func TestServerDoesNotAdvertiseTheDeprecatedLoggingCapability(t *testing.T) {
 	t.Parallel()
 
 	server := newTestServer(t, testDeps(t))
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	capabilities := session.InitializeResult().Capabilities
@@ -255,7 +254,7 @@ func TestInjectedLimiterIsInTheChain(t *testing.T) {
 	deps.Limiter = limiter
 	server := newTestServer(t, deps)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	first, err := session.CallTool(ctx, &mcp.CallToolParams{Name: mcpserver.ServerInfoToolName})

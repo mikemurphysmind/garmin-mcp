@@ -231,8 +231,7 @@ func meanOf(values []float64) *float64 {
 	for _, value := range values {
 		total += value
 	}
-	mean := total / float64(len(values))
-	return &mean
+	return new(total / float64(len(values)))
 }
 
 // trendWindowProperties declares the start and end arguments every trend tool takes,

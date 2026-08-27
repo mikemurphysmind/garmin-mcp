@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -16,7 +15,7 @@ import (
 func TestRedeemedAuthCodeCarriesItsWholeWindow(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 	code := seedCode(t, opened, principal.ID, client.ID, testCode)
@@ -39,7 +38,7 @@ func TestRedeemedAuthCodeCarriesItsWholeWindow(t *testing.T) {
 func TestPutAuthCodeStoresTheCallerInstants(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 
@@ -77,7 +76,7 @@ func TestPutAuthCodeStoresTheCallerInstants(t *testing.T) {
 func TestConsumeAuthCodeReportsExpiryWithoutBecomingAnOracle(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 	code := seedCode(t, opened, principal.ID, client.ID, testCode)

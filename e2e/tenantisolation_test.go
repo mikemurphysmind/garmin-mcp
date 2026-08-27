@@ -3,7 +3,6 @@
 package e2e
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -173,11 +172,11 @@ func TestDistinctPrincipalsBackEachMintedToken(t *testing.T) {
 	sqlite := openSeedStore(t, fixture.server.stateDir)
 	defer func() { _ = sqlite.Close() }()
 
-	grantA, err := sqlite.LookupAccessToken(context.Background(), storeLookupSecret(fixture.tokenA))
+	grantA, err := sqlite.LookupAccessToken(t.Context(), storeLookupSecret(fixture.tokenA))
 	if err != nil {
 		t.Fatalf("look up principal A's token: %v", err)
 	}
-	grantB, err := sqlite.LookupAccessToken(context.Background(), storeLookupSecret(fixture.tokenB))
+	grantB, err := sqlite.LookupAccessToken(t.Context(), storeLookupSecret(fixture.tokenB))
 	if err != nil {
 		t.Fatalf("look up principal B's token: %v", err)
 	}

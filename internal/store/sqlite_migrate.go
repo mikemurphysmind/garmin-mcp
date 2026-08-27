@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -8,7 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -101,7 +102,7 @@ func LoadMigrations(fsys fs.FS) ([]Migration, error) {
 		}
 		set = append(set, migration)
 	}
-	sort.Slice(set, func(i, j int) bool { return set[i].Version < set[j].Version })
+	slices.SortFunc(set, func(a, b Migration) int { return cmp.Compare(a.Version, b.Version) })
 
 	if err := checkMonotonic(set); err != nil {
 		return nil, err

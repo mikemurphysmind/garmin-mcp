@@ -186,8 +186,7 @@ func optionalISODate(text client.Text) *string {
 	if !ok || value == "" {
 		return nil
 	}
-	out := isoDateOnly(value)
-	return &out
+	return new(isoDateOnly(value))
 }
 
 // challengePageInput is the strict start/limit argument set every challenge-list

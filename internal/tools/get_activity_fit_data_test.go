@@ -300,7 +300,7 @@ func TestFITDataNeedsAPrincipal(t *testing.T) {
 	t.Parallel()
 
 	h := newFITHarness(t, fitScript(fitRide(60, fitTestPower)), Bounds{})
-	_, err := h.svc.activityFITData(context.Background(), activityFITInput{
+	_, err := h.svc.activityFITData(t.Context(), activityFITInput{
 		ActivityID: int64(fitTestActivity),
 	})
 	if !errors.Is(err, identity.ErrNoPrincipal) {

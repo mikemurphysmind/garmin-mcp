@@ -1,7 +1,6 @@
 package oauthstore_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -29,7 +28,7 @@ func TestNewRefusesMissingDependencies(t *testing.T) {
 func TestClientDelegatesToTheOperatorRegistry(t *testing.T) {
 	f := newFixture(t)
 
-	client, err := f.adapter.Client(context.Background(), f.clientID)
+	client, err := f.adapter.Client(t.Context(), f.clientID)
 	if err != nil {
 		t.Fatalf("Client: %v", err)
 	}
@@ -44,7 +43,7 @@ func TestClientDelegatesToTheOperatorRegistry(t *testing.T) {
 func TestClientReportsUnknownClient(t *testing.T) {
 	f := newFixture(t)
 
-	_, err := f.adapter.Client(context.Background(), "no-such-client")
+	_, err := f.adapter.Client(t.Context(), "no-such-client")
 	if !errors.Is(err, oauthserver.ErrUnknownClient) {
 		t.Fatalf("error is %v, want ErrUnknownClient", err)
 	}
@@ -55,7 +54,7 @@ func TestClientReportsUnknownClient(t *testing.T) {
 // boundary.
 func TestZeroLookupIsRefused(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	cases := map[string]func() error{
 		"Transaction": func() error {
@@ -93,7 +92,7 @@ func TestZeroLookupIsRefused(t *testing.T) {
 // store's own sentinel stays reachable underneath it for the log.
 func TestStorageFailuresArriveAsErrStorageAndKeepTheirCause(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	transaction := f.transaction("duplicate", oauthserver.ClientState{})
 	if err := f.adapter.CreateTransaction(ctx, transaction); err != nil {
@@ -115,7 +114,7 @@ func TestStorageFailuresArriveAsErrStorageAndKeepTheirCause(t *testing.T) {
 // does not exist.
 func TestSaveTokenPairRefusesDisagreeingRecords(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	f.seedConsent(t)
 
 	cases := map[string]func(*oauthserver.RefreshToken){

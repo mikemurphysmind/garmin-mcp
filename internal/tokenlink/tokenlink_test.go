@@ -1,7 +1,6 @@
 package tokenlink_test
 
 import (
-	"context"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -53,7 +52,7 @@ func newStore(t *testing.T) *tokenlink.Store {
 
 func TestSaveThenLoadRoundTripsThroughEncryptedStorage(t *testing.T) {
 	linked := newStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	expiry := time.Date(2026, 8, 14, 12, 0, 0, 0, time.UTC)
 
 	set := auth.NewTokenSet(testToken, testRefreshToken, testClientID, expiry)
@@ -92,7 +91,7 @@ func TestSaveThenLoadRoundTripsThroughEncryptedStorage(t *testing.T) {
 func TestLoadReportsTheConsumerSentinel(t *testing.T) {
 	linked := newStore(t)
 
-	_, _, err := linked.Load(context.Background(), "absent-principal")
+	_, _, err := linked.Load(t.Context(), "absent-principal")
 	if !errors.Is(err, auth.ErrNoTokens) {
 		t.Fatalf("error = %v, want errors.Is(err, auth.ErrNoTokens)", err)
 	}
@@ -103,7 +102,7 @@ func TestLoadReportsTheConsumerSentinel(t *testing.T) {
 
 func TestSaveWithStaleVersionReportsTheConsumerConflict(t *testing.T) {
 	linked := newStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	set := auth.NewTokenSet(testToken, testRefreshToken, testClientID, time.Time{})
 
 	version, err := linked.Save(ctx, testPrincipal, set, 0)
@@ -120,7 +119,7 @@ func TestSaveWithStaleVersionReportsTheConsumerConflict(t *testing.T) {
 
 func TestDeleteIsIdempotent(t *testing.T) {
 	linked := newStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if err := linked.Delete(ctx, "never-stored"); err != nil {
 		t.Fatalf("Delete of an absent set: %v", err)

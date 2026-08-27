@@ -1,11 +1,11 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
 	"slices"
-	"sort"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/tamcore/garmin-mcp/internal/garmin/api"
@@ -117,8 +117,8 @@ func alarmMinutes(alarm api.DeviceAlarm) int64 {
 // (devices.py:279-316).
 func newDeviceAlarmList(result api.DeviceAlarmResult) DeviceAlarmList {
 	alarms := slices.Clone(result.Alarms)
-	sort.SliceStable(alarms, func(i, j int) bool {
-		return alarmMinutes(alarms[i]) < alarmMinutes(alarms[j])
+	slices.SortStableFunc(alarms, func(a, b api.DeviceAlarm) int {
+		return cmp.Compare(alarmMinutes(a), alarmMinutes(b))
 	})
 
 	out := make([]DeviceAlarmEntry, 0, len(alarms))
@@ -167,6 +167,5 @@ func formatAlarmTime(minutes client.Number) *string {
 	if !ok {
 		return nil
 	}
-	text := fmt.Sprintf("%02d:%02d", value/60, value%60)
-	return &text
+	return new(fmt.Sprintf("%02d:%02d", value/60, value%60))
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,7 +23,7 @@ func TestRunWritesTheNoticesToAFile(t *testing.T) {
 
 	out := filepath.Join(t.TempDir(), "NOTICES.md")
 
-	if err := run(context.Background(), repoRoot, out); err != nil {
+	if err := run(t.Context(), repoRoot, out); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 
@@ -76,7 +75,7 @@ func TestRunWritesToStdoutOnDash(t *testing.T) {
 		captured <- buf.Bytes()
 	}()
 
-	runErr := run(context.Background(), repoRoot, "-")
+	runErr := run(t.Context(), repoRoot, "-")
 	_ = write.Close()
 	os.Stdout = original
 
@@ -102,7 +101,7 @@ func TestRunFailsWhenTheModuleGraphCannotBeResolved(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "NOTICES.md")
 
-	err := run(context.Background(), dir, out)
+	err := run(t.Context(), dir, out)
 	if err == nil {
 		t.Fatal("run succeeded outside a module; want an error")
 	}
@@ -150,7 +149,7 @@ func TestExecuteReportsTheExitStatus(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var stderr bytes.Buffer
 
-			if got := execute(context.Background(), tc.args, &stderr); got != tc.want {
+			if got := execute(t.Context(), tc.args, &stderr); got != tc.want {
 				t.Errorf("execute(%v) = %d, want %d (stderr: %s)",
 					tc.args, got, tc.want, strings.TrimSpace(stderr.String()))
 			}

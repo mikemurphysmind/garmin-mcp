@@ -161,7 +161,7 @@ func TestStdioStdoutCarriesMCPFramesOnly(t *testing.T) {
 	harness := newStdioHarness(t)
 	server, sink := stdioServer(t)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 	defer cancel()
 
 	done := runStdio(server, ctx)
@@ -220,7 +220,7 @@ func TestStdioStartupLoggingDoesNotTouchStdout(t *testing.T) {
 		t.Fatalf("startup was not logged to the stderr sink: %q", sink.String())
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 	defer cancel()
 
 	done := runStdio(server, ctx)
@@ -247,7 +247,7 @@ func TestRunStdioHonorsExplicitStreams(t *testing.T) {
 	in, inWriter := io.Pipe()
 	var out syncBuffer
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 	defer cancel()
 
 	done := make(chan error, 1)
@@ -291,7 +291,7 @@ func TestRunStdioReturnsOnContextCancellation(t *testing.T) {
 	in, inWriter := io.Pipe()
 	t.Cleanup(func() { _ = inWriter.Close() })
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() { done <- server.RunStdio(ctx, mcpserver.StdioOptions{In: in, Out: &syncBuffer{}}) }()
 

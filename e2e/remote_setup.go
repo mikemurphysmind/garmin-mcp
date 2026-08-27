@@ -126,7 +126,7 @@ func startRemoteServerConfigured(
 }
 
 // launchRemote starts the server process and returns a function that stops
-// it. The same function also runs at test cleanup, guarded by sync.Once, so a
+// it. The same function also runs at test cleanup, guarded by sync.OnceFunc, so a
 // test that stops the deployment early to reopen its database — the store is
 // single-writer, so nothing may reopen it while the process still holds it —
 // does not stop it a second time, and a test that never calls it explicitly
@@ -150,13 +150,10 @@ func launchRemote(t *testing.T, dir, configPath, proxyURL string) func() {
 		t.Fatalf("start the server: %v", err)
 	}
 
-	var once sync.Once
-	stop := func() {
-		once.Do(func() {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
-		})
-	}
+	stop := sync.OnceFunc(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	})
 	t.Cleanup(func() {
 		stop()
 		_ = logFile.Close()

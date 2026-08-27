@@ -122,7 +122,7 @@ func newWriteHarnessWithCatalog(
 		newRegistrar(t, fake, tools.Bounds{}, client.Limits{}, catalog), opts)
 
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	done := make(chan struct{})
 	go func() {

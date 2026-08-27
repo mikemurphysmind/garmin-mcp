@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"fmt"
@@ -200,10 +201,7 @@ func (s *SQLiteStore) prepareRotation(stored storedToken, rotation RefreshRotati
 	if err != nil {
 		return preparedGrant{}, err
 	}
-	generation := rotation.NextGeneration
-	if generation == 0 {
-		generation = stored.generation + 1
-	}
+	generation := cmp.Or(rotation.NextGeneration, stored.generation+1)
 	scopes := stored.scopes
 	if len(rotation.Scopes) > 0 {
 		// Validated the same way every other scope write is, so a rotation cannot

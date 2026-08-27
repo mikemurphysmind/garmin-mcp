@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 )
@@ -35,7 +34,7 @@ func TestOpenedDatabaseKeepsItsTempStoreInMemory(t *testing.T) {
 	// in the DSN precisely so the driver applies them per connection.
 	for attempt := range 4 {
 		var mode int
-		if err := db.QueryRowContext(context.Background(), "PRAGMA temp_store").Scan(&mode); err != nil {
+		if err := db.QueryRowContext(t.Context(), "PRAGMA temp_store").Scan(&mode); err != nil {
 			t.Fatalf("reading PRAGMA temp_store on attempt %d: %v", attempt, err)
 		}
 		if mode != tempStoreMemory {
@@ -49,9 +48,8 @@ func TestOpenedDatabaseKeepsItsTempStoreInMemory(t *testing.T) {
 	// And a query that actually drives the sorter must run. No table is needed for
 	// that, which keeps this test independent of the migrations.
 	var ordered string
-	err = db.QueryRowContext(context.Background(),
-		`SELECT group_concat(v) FROM (SELECT 2 AS v UNION ALL SELECT 1 ORDER BY v)`,
-	).Scan(&ordered)
+	const ordering = `SELECT group_concat(v) FROM (SELECT 2 AS v UNION ALL SELECT 1 ORDER BY v)`
+	err = db.QueryRowContext(t.Context(), ordering).Scan(&ordered)
 	if err != nil {
 		t.Fatalf("a sorting query failed: %v", err)
 	}

@@ -241,12 +241,9 @@ func TestConcurrentDoSharesOneRefresh(t *testing.T) {
 
 	const callers = 8
 	var wg sync.WaitGroup
-	wg.Add(callers)
 
 	for range callers {
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			resp, err := h.refresher.Do(t.Context(), testPrincipalID, apiRequest(t, http.MethodGet, ""))
 			if err != nil {
 				t.Errorf("Do: %v", err)
@@ -257,7 +254,7 @@ func TestConcurrentDoSharesOneRefresh(t *testing.T) {
 			if resp.StatusCode != http.StatusOK {
 				t.Errorf("status = %d, want 200", resp.StatusCode)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

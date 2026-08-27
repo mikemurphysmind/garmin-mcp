@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -18,7 +17,7 @@ import (
 func TestRevocationReportsDatabaseBusyUnderRealContention(t *testing.T) {
 	t.Parallel()
 	path, key := testDBPath(t), testKey(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// First connection: migrates the schema, then closes so the raw contending
 	// connection below is the only thing on the file when it grabs the lock.

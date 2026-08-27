@@ -58,7 +58,7 @@ func TestReadOnlyToolIsAllowedWithNoScopesGranted(t *testing.T) {
 
 	p := mustNew(t, baseConfig(), policy.NoScopes{})
 
-	decision := p.Decide(context.Background(), readTool)
+	decision := p.Decide(t.Context(), readTool)
 	if !decision.Allowed {
 		t.Fatalf("read-only tool denied: %v (%s)", decision.Err, decision.Reason)
 	}
@@ -79,7 +79,7 @@ func TestLocalOperatorAuthorityAllowsEnabledTiersWithoutOAuthScopes(t *testing.T
 	cfg.EnableDestructive = true
 	p := mustNew(t, cfg, nil)
 
-	write := p.Decide(context.Background(), writeTool)
+	write := p.Decide(t.Context(), writeTool)
 	if !write.Allowed {
 		t.Fatalf("local write denied: %v (%s)", write.Err, write.Reason)
 	}
@@ -87,14 +87,14 @@ func TestLocalOperatorAuthorityAllowsEnabledTiersWithoutOAuthScopes(t *testing.T
 		t.Fatal("local write tool requires confirmation")
 	}
 
-	destructive := p.Decide(context.Background(), destructiveTool)
+	destructive := p.Decide(t.Context(), destructiveTool)
 	if !destructive.Allowed {
 		t.Fatalf("local destructive call denied: %v (%s)", destructive.Err, destructive.Reason)
 	}
 	if !destructive.RequiresConfirmation {
 		t.Fatal("local destructive tool does not require confirmation")
 	}
-	if scopes := p.GrantedScopes(context.Background()); len(scopes) != 0 {
+	if scopes := p.GrantedScopes(t.Context()); len(scopes) != 0 {
 		t.Fatalf("GrantedScopes() = %v, want none for local operator authority", scopes)
 	}
 }
@@ -109,7 +109,7 @@ func TestRemoteOperatorEnablementAloneNeverSuffices(t *testing.T) {
 	p := mustNew(t, cfg, policy.NoScopes{})
 
 	for _, tool := range []string{writeTool, destructiveTool} {
-		decision := p.Decide(context.Background(), tool)
+		decision := p.Decide(t.Context(), tool)
 		if decision.Allowed {
 			t.Errorf("%s allowed with enablement but no granted scope", tool)
 		}
@@ -141,7 +141,7 @@ func TestLocalOperatorAuthorityDoesNotBypassNameLists(t *testing.T) {
 			tc.set(&cfg)
 			p := mustNew(t, cfg, nil)
 
-			decision := p.Decide(context.Background(), writeTool)
+			decision := p.Decide(t.Context(), writeTool)
 			if decision.Allowed {
 				t.Fatal("local operator authority bypassed a name list")
 			}
@@ -160,7 +160,7 @@ func TestGrantedScopeAloneNeverSuffices(t *testing.T) {
 	p := mustNew(t, baseConfig(), scopes)
 
 	for _, tool := range []string{writeTool, destructiveTool} {
-		decision := p.Decide(context.Background(), tool)
+		decision := p.Decide(t.Context(), tool)
 		if decision.Allowed {
 			t.Errorf("%s allowed with a granted scope but no operator enablement", tool)
 		}
@@ -179,7 +179,7 @@ func TestIntersectionOfEnablementAndScopeAllowsTheTool(t *testing.T) {
 	scopes := grantingScopes{scopes: []policy.Scope{policy.ScopeWrite, policy.ScopeDestructive}}
 	p := mustNew(t, cfg, scopes)
 
-	write := p.Decide(context.Background(), writeTool)
+	write := p.Decide(t.Context(), writeTool)
 	if !write.Allowed {
 		t.Fatalf("add_weigh_in denied: %v (%s)", write.Err, write.Reason)
 	}
@@ -187,7 +187,7 @@ func TestIntersectionOfEnablementAndScopeAllowsTheTool(t *testing.T) {
 		t.Error("a write tool must not require confirmation")
 	}
 
-	destructive := p.Decide(context.Background(), destructiveTool)
+	destructive := p.Decide(t.Context(), destructiveTool)
 	if !destructive.Allowed {
 		t.Fatalf("delete_workout denied: %v (%s)", destructive.Err, destructive.Reason)
 	}
@@ -205,12 +205,12 @@ func TestScopesDoNotImplyEachOther(t *testing.T) {
 	cfg.EnableDestructive = true
 
 	writeOnly := mustNew(t, cfg, grantingScopes{scopes: []policy.Scope{policy.ScopeWrite}})
-	if decision := writeOnly.Decide(context.Background(), destructiveTool); decision.Allowed {
+	if decision := writeOnly.Decide(t.Context(), destructiveTool); decision.Allowed {
 		t.Error("the write scope must not authorize a destructive tool")
 	}
 
 	destructiveOnly := mustNew(t, cfg, grantingScopes{scopes: []policy.Scope{policy.ScopeDestructive}})
-	if decision := destructiveOnly.Decide(context.Background(), writeTool); decision.Allowed {
+	if decision := destructiveOnly.Decide(t.Context(), writeTool); decision.Allowed {
 		t.Error("the destructive scope must not authorize a write tool")
 	}
 }
@@ -223,7 +223,7 @@ func TestScopeLookupFailureFailsClosed(t *testing.T) {
 	scopes := grantingScopes{err: errors.New("token store unavailable")}
 	p := mustNew(t, cfg, scopes)
 
-	decision := p.Decide(context.Background(), writeTool)
+	decision := p.Decide(t.Context(), writeTool)
 	if decision.Allowed {
 		t.Fatal("a scope lookup failure must fail closed")
 	}
@@ -244,7 +244,7 @@ func TestScopeLookupFailureDoesNotAffectReadOnlyTools(t *testing.T) {
 
 	p := mustNew(t, baseConfig(), grantingScopes{err: errors.New("token store unavailable")})
 
-	if decision := p.Decide(context.Background(), readTool); !decision.Allowed {
+	if decision := p.Decide(t.Context(), readTool); !decision.Allowed {
 		t.Fatalf("read-only tool denied by an unrelated scope failure: %v", decision.Err)
 	}
 }
@@ -256,7 +256,7 @@ func TestNilScopeSourceGrantsNothing(t *testing.T) {
 	cfg.EnableWrite = true
 	p := mustNew(t, cfg, nil)
 
-	decision := p.Decide(context.Background(), writeTool)
+	decision := p.Decide(t.Context(), writeTool)
 	if decision.Allowed {
 		t.Fatal("a nil scope source must grant nothing rather than everything")
 	}
@@ -270,7 +270,7 @@ func TestUnknownToolIsRefused(t *testing.T) {
 
 	p := mustNew(t, baseConfig(), policy.NoScopes{})
 
-	decision := p.Decide(context.Background(), "get_menstrual_calendar_data")
+	decision := p.Decide(t.Context(), "get_menstrual_calendar_data")
 	if decision.Allowed {
 		t.Fatal("a tool with no tier must be refused")
 	}
@@ -288,7 +288,7 @@ func TestRefusalReasonDoesNotEchoTheToolName(t *testing.T) {
 	cfg.EnableDestructive = true
 	p := mustNew(t, cfg, policy.NoScopes{})
 
-	decision := p.Decide(context.Background(), destructiveTool)
+	decision := p.Decide(t.Context(), destructiveTool)
 	if decision.Reason == "" {
 		t.Fatal("a refusal must carry a reason")
 	}
@@ -309,11 +309,11 @@ func TestRemoteModeDefaultsToReadOnly(t *testing.T) {
 		scopes: []policy.Scope{policy.ScopeWrite, policy.ScopeDestructive},
 	})
 
-	if decision := p.Decide(context.Background(), readTool); !decision.Allowed {
+	if decision := p.Decide(t.Context(), readTool); !decision.Allowed {
 		t.Fatalf("remote read-only tool denied: %v", decision.Err)
 	}
 	for _, tool := range []string{writeTool, destructiveTool} {
-		decision := p.Decide(context.Background(), tool)
+		decision := p.Decide(t.Context(), tool)
 		if decision.Allowed {
 			t.Errorf("%s allowed in a remote deployment that did not enable its tier", tool)
 		}
@@ -330,14 +330,14 @@ func TestDenylistRefusesEvenAReadOnlyTool(t *testing.T) {
 	cfg.Denylist = []string{readTool2}
 	p := mustNew(t, cfg, policy.NoScopes{})
 
-	decision := p.Decide(context.Background(), readTool2)
+	decision := p.Decide(t.Context(), readTool2)
 	if decision.Allowed {
 		t.Fatal("a denylisted tool must be refused")
 	}
 	if !errors.Is(decision.Err, policy.ErrToolDenied) {
 		t.Fatalf("Err = %v, want ErrToolDenied", decision.Err)
 	}
-	if decision := p.Decide(context.Background(), readTool); !decision.Allowed {
+	if decision := p.Decide(t.Context(), readTool); !decision.Allowed {
 		t.Fatal("the denylist must not affect an unlisted tool")
 	}
 }
@@ -352,7 +352,7 @@ func TestDenylistBeatsEnablementAndScope(t *testing.T) {
 	cfg.Denylist = []string{writeTool}
 	p := mustNew(t, cfg, grantingScopes{scopes: []policy.Scope{policy.ScopeWrite}})
 
-	decision := p.Decide(context.Background(), writeTool)
+	decision := p.Decide(t.Context(), writeTool)
 	if decision.Allowed {
 		t.Fatal("the denylist must beat enablement and scope")
 	}
@@ -368,11 +368,11 @@ func TestAllowlistRestrictsWithoutBypassingTiers(t *testing.T) {
 	cfg.Allowlist = []string{readTool, writeTool, destructiveTool}
 	p := mustNew(t, cfg, policy.NoScopes{})
 
-	if decision := p.Decide(context.Background(), readTool); !decision.Allowed {
+	if decision := p.Decide(t.Context(), readTool); !decision.Allowed {
 		t.Fatalf("an allowlisted read-only tool must be allowed: %v", decision.Err)
 	}
 
-	decision := p.Decide(context.Background(), readTool2)
+	decision := p.Decide(t.Context(), readTool2)
 	if decision.Allowed {
 		t.Fatal("a tool absent from a non-empty allowlist must be refused")
 	}
@@ -381,7 +381,7 @@ func TestAllowlistRestrictsWithoutBypassingTiers(t *testing.T) {
 	}
 
 	// The allowlist grants nothing: the write tier is still shut.
-	write := p.Decide(context.Background(), writeTool)
+	write := p.Decide(t.Context(), writeTool)
 	if write.Allowed {
 		t.Fatal("the allowlist must be intersected with the tiers, not bypass them")
 	}
@@ -396,7 +396,7 @@ func TestEmptyAllowlistMeansNoRestriction(t *testing.T) {
 	p := mustNew(t, baseConfig(), policy.NoScopes{})
 
 	for _, tool := range []string{readTool, readTool2} {
-		if decision := p.Decide(context.Background(), tool); !decision.Allowed {
+		if decision := p.Decide(t.Context(), tool); !decision.Allowed {
 			t.Errorf("%s refused although no allowlist is configured: %v", tool, decision.Err)
 		}
 	}

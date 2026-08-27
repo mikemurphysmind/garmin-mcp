@@ -47,8 +47,8 @@ func safeError(err error) string {
 		return "none"
 	}
 
-	var apiErr *client.APIError
-	if errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[*client.APIError](err)
+	if ok {
 		return apiErr.Error()
 	}
 	switch {

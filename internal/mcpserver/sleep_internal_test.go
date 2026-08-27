@@ -24,7 +24,7 @@ func TestSleepPrefersCancellationWhenBothAreReady(t *testing.T) {
 	t.Parallel()
 
 	server := &Server{}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	for attempt := range raceAttempts {
@@ -42,7 +42,7 @@ func TestSleepPrefersCancellationWhenBothAreReady(t *testing.T) {
 func TestSleepReturnsNilWhenItElapsesUninterrupted(t *testing.T) {
 	t.Parallel()
 
-	if err := (&Server{}).sleep(context.Background(), 0); err != nil {
+	if err := (&Server{}).sleep(t.Context(), 0); err != nil {
 		t.Errorf("sleep() = %v, want nil for a pause that simply elapsed", err)
 	}
 }

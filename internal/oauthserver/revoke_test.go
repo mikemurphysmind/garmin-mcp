@@ -1,7 +1,6 @@
 package oauthserver
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -25,7 +24,7 @@ func testConsentKey(t *testing.T) ConsentKey {
 func TestRevokeConsentCascadesToTheTokenFamilies(t *testing.T) {
 	h := newHarness(t)
 	tokens := h.firstTokens(t)
-	stored, err := h.store.AccessToken(context.Background(), tokens.AccessToken.Lookup())
+	stored, err := h.store.AccessToken(t.Context(), tokens.AccessToken.Lookup())
 	if err != nil {
 		t.Fatalf("reading the access token: %v", err)
 	}
@@ -33,7 +32,7 @@ func TestRevokeConsentCascadesToTheTokenFamilies(t *testing.T) {
 		t.Fatalf("consents = %d, want 1 before revocation", h.store.consentCount())
 	}
 
-	if err := h.srv.RevokeConsent(context.Background(), testConsentKey(t)); err != nil {
+	if err := h.srv.RevokeConsent(t.Context(), testConsentKey(t)); err != nil {
 		t.Fatalf("RevokeConsent: %v", err)
 	}
 
@@ -43,9 +42,7 @@ func TestRevokeConsentCascadesToTheTokenFamilies(t *testing.T) {
 	if !h.store.familyRevoked(stored.Family) {
 		t.Fatal("revoking consent left the token family alive")
 	}
-	if _, err := h.srv.VerifyAccessToken(
-		context.Background(), tokens.AccessToken,
-	); !errors.Is(err, ErrInvalidToken) {
+	if _, err := h.srv.VerifyAccessToken(t.Context(), tokens.AccessToken); !errors.Is(err, ErrInvalidToken) {
 		t.Fatalf("the access token still verified after revocation: %v", err)
 	}
 	if _, err := h.exchange(t, refreshRequest(tokens.RefreshToken)); err == nil {
@@ -58,7 +55,7 @@ func TestRevokeConsentIsIdempotent(t *testing.T) {
 	h.firstTokens(t)
 
 	for range 3 {
-		if err := h.srv.RevokeConsent(context.Background(), testConsentKey(t)); err != nil {
+		if err := h.srv.RevokeConsent(t.Context(), testConsentKey(t)); err != nil {
 			t.Fatalf("RevokeConsent: %v", err)
 		}
 	}
@@ -69,7 +66,7 @@ func TestRevokeConsentFailsClosedOnAStorageFailure(t *testing.T) {
 	h.firstTokens(t)
 	h.store.failOn["RevokeConsent"] = errors.New("disk on fire")
 
-	err := h.srv.RevokeConsent(context.Background(), testConsentKey(t))
+	err := h.srv.RevokeConsent(t.Context(), testConsentKey(t))
 
 	if !errors.Is(err, ErrStorage) {
 		t.Fatalf("error = %v, want it to wrap ErrStorage", err)
@@ -84,7 +81,7 @@ func TestRevokeConsentRefusesAnUnresolvedPrincipal(t *testing.T) {
 	key := testConsentKey(t)
 	key.Principal = identityZeroPrincipal()
 
-	if err := h.srv.RevokeConsent(context.Background(), key); err == nil {
+	if err := h.srv.RevokeConsent(t.Context(), key); err == nil {
 		t.Fatal("RevokeConsent accepted the zero principal")
 	}
 }
@@ -109,9 +106,7 @@ func TestRevokePrincipalUnlinksEverything(t *testing.T) {
 		t.Fatalf("consents = %d, want 2", h.store.consentCount())
 	}
 
-	if err := h.srv.RevokePrincipal(
-		context.Background(), mustPrincipal(t, testPrincipalID),
-	); err != nil {
+	if err := h.srv.RevokePrincipal(t.Context(), mustPrincipal(t, testPrincipalID)); err != nil {
 		t.Fatalf("RevokePrincipal: %v", err)
 	}
 
@@ -122,7 +117,7 @@ func TestRevokePrincipalUnlinksEverything(t *testing.T) {
 		"first client":  first.AccessToken,
 		"second client": second.AccessToken,
 	} {
-		if _, err := h.srv.VerifyAccessToken(context.Background(), token); !errors.Is(
+		if _, err := h.srv.VerifyAccessToken(t.Context(), token); !errors.Is(
 			err, ErrInvalidToken) {
 			t.Fatalf("the %s access token survived unlinking: %v", label, err)
 		}
@@ -134,7 +129,7 @@ func TestRevokePrincipalFailsClosed(t *testing.T) {
 	h.firstTokens(t)
 	h.store.failOn["RevokePrincipal"] = errors.New("disk on fire")
 
-	err := h.srv.RevokePrincipal(context.Background(), mustPrincipal(t, testPrincipalID))
+	err := h.srv.RevokePrincipal(t.Context(), mustPrincipal(t, testPrincipalID))
 
 	if !errors.Is(err, ErrStorage) {
 		t.Fatalf("error = %v, want it to wrap ErrStorage", err)
@@ -149,12 +144,12 @@ func TestRevokeTokenKillsTheFamilyForEitherTokenType(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			h := newHarness(t)
 			tokens := h.firstTokens(t)
-			stored, err := h.store.AccessToken(context.Background(), tokens.AccessToken.Lookup())
+			stored, err := h.store.AccessToken(t.Context(), tokens.AccessToken.Lookup())
 			if err != nil {
 				t.Fatalf("reading the access token: %v", err)
 			}
 
-			err = h.srv.RevokeToken(context.Background(), RevokeRequest{
+			err = h.srv.RevokeToken(t.Context(), RevokeRequest{
 				ClientID: testClientID,
 				Token:    pick(tokens).Reveal(),
 			})
@@ -177,7 +172,7 @@ func TestRevokeTokenIsSilentAboutTokensItWillNotRevoke(t *testing.T) {
 	other.ID = testOtherClientID
 	h := newHarness(t, publicClientSpec(), other)
 	tokens := h.firstTokens(t)
-	stored, err := h.store.AccessToken(context.Background(), tokens.AccessToken.Lookup())
+	stored, err := h.store.AccessToken(t.Context(), tokens.AccessToken.Lookup())
 	if err != nil {
 		t.Fatalf("reading the access token: %v", err)
 	}
@@ -188,7 +183,7 @@ func TestRevokeTokenIsSilentAboutTokensItWillNotRevoke(t *testing.T) {
 		"another client's token": {ClientID: other.ID, Token: tokens.RefreshToken.Reveal()},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if err := h.srv.RevokeToken(context.Background(), req); err != nil {
+			if err := h.srv.RevokeToken(t.Context(), req); err != nil {
 				t.Fatalf("RevokeToken reported %v, want silence", err)
 			}
 		})
@@ -202,7 +197,7 @@ func TestRevokeTokenRequiresAKnownClient(t *testing.T) {
 	h := newHarness(t)
 	tokens := h.firstTokens(t)
 
-	err := h.srv.RevokeToken(context.Background(), RevokeRequest{
+	err := h.srv.RevokeToken(t.Context(), RevokeRequest{
 		ClientID: testUnknownClient,
 		Token:    tokens.RefreshToken.Reveal(),
 	})

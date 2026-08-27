@@ -122,7 +122,7 @@ type redactedTokenSet struct {
 	HasToken        bool   `json:"tokenPresent"`
 	HasRefreshToken bool   `json:"refreshTokenPresent"`
 	ClientID        string `json:"clientId,omitempty"`
-	ExpiresAtUnix   int64  `json:"expiresAtUnix,omitempty"`
+	ExpiresAtUnix   int64  `json:"expiresAtUnix,omitzero"`
 }
 
 func (t TokenSet) redacted() redactedTokenSet {

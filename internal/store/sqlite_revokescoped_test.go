@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -17,7 +16,7 @@ func seedKeyedFamily(t *testing.T, s *store.SQLiteStore, clock *fakeClock,
 	key store.ConsentKey, label string,
 ) store.Secret {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	if err := s.GrantConsentFor(ctx, key, []string{testScope}); err != nil {
 		t.Fatalf("GrantConsentFor %s: %v", label, err)
 	}
@@ -44,7 +43,7 @@ func seedKeyedFamily(t *testing.T, s *store.SQLiteStore, clock *fakeClock,
 func TestRevokeConsentForLeavesTheOtherKeysAlone(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 
@@ -83,7 +82,7 @@ func TestRevokeConsentForLeavesTheOtherKeysAlone(t *testing.T) {
 func TestRevokeConsentForIsIdempotent(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 	key := store.ConsentKey{PrincipalID: principal.ID, ClientID: client.ID,
@@ -117,7 +116,7 @@ func TestRevokeConsentForIsIdempotent(t *testing.T) {
 func TestRevokePrincipalTokensRevokesTokensAndConsents(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	if _, err := opened.Save(ctx, grant.principal.ID, newSQLTestTokens(), 0); err != nil {
@@ -153,7 +152,7 @@ func TestRevokePrincipalTokensRevokesTokensAndConsents(t *testing.T) {
 func TestRevokePrincipalTokensIsIdempotentAndForgivesAnUnknownPrincipal(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	if _, err := opened.RevokePrincipalTokens(ctx, grant.principal.ID); err != nil {
@@ -184,7 +183,7 @@ func TestRevokePrincipalTokensIsIdempotentAndForgivesAnUnknownPrincipal(t *testi
 func TestRevokePrincipalTokensLeavesOtherPrincipalsAlone(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	bystander, err := opened.CreatePrincipal(ctx, "bystander@example.com")

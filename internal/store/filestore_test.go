@@ -41,7 +41,7 @@ func newTestStore(t *testing.T) (*FileStore, string) {
 func TestLoadReportsErrNoTokensWhenAbsent(t *testing.T) {
 	store, _ := newTestStore(t)
 
-	set, version, err := store.Load(context.Background(), testPrincipal)
+	set, version, err := store.Load(t.Context(), testPrincipal)
 	if !errors.Is(err, ErrNoTokens) {
 		t.Fatalf("Load error = %v, want ErrNoTokens", err)
 	}
@@ -55,7 +55,7 @@ func TestLoadReportsErrNoTokensWhenAbsent(t *testing.T) {
 
 func TestSaveThenLoadRoundTripsEveryField(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	version, err := store.Save(ctx, testPrincipal, newTestTokens(), 0)
 	if err != nil {
@@ -85,7 +85,7 @@ func TestSaveThenLoadRoundTripsEveryField(t *testing.T) {
 
 func TestSaveWithZeroExpectedVersionRefusesAnExistingRecord(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, err := store.Save(ctx, testPrincipal, newTestTokens(), 0); err != nil {
 		t.Fatalf("first Save: %v", err)
@@ -97,7 +97,7 @@ func TestSaveWithZeroExpectedVersionRefusesAnExistingRecord(t *testing.T) {
 
 func TestSaveRejectsAStaleExpectedVersion(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	first, err := store.Save(ctx, testPrincipal, newTestTokens(), 0)
 	if err != nil {
@@ -128,7 +128,7 @@ func TestSaveRejectsAStaleExpectedVersion(t *testing.T) {
 func TestSaveRejectsAnExpectedVersionForAnAbsentRecord(t *testing.T) {
 	store, _ := newTestStore(t)
 
-	_, err := store.Save(context.Background(), testPrincipal, newTestTokens(), 7)
+	_, err := store.Save(t.Context(), testPrincipal, newTestTokens(), 7)
 	if !errors.Is(err, ErrVersionConflict) {
 		t.Fatalf("Save with expectedVersion 7 and no record: err = %v, want ErrVersionConflict", err)
 	}
@@ -136,7 +136,7 @@ func TestSaveRejectsAnExpectedVersionForAnAbsentRecord(t *testing.T) {
 
 func TestDeleteIsIdempotentAndAbsenceIsNotAnError(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if err := store.Delete(ctx, testPrincipal); err != nil {
 		t.Fatalf("Delete of an absent record: %v", err)
@@ -162,7 +162,7 @@ func TestDeleteIsIdempotentAndAbsenceIsNotAnError(t *testing.T) {
 
 func TestPrincipalsAreIsolated(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	other := testOther
 
 	if _, err := store.Save(ctx, testPrincipal, newTestTokens(), 0); err != nil {
@@ -188,7 +188,7 @@ func TestPrincipalsAreIsolated(t *testing.T) {
 func TestRecordOnDiskHoldsNoPlaintextToken(t *testing.T) {
 	store, dir := newTestStore(t)
 
-	if _, err := store.Save(context.Background(), testPrincipal, newTestTokens(), 0); err != nil {
+	if _, err := store.Save(t.Context(), testPrincipal, newTestTokens(), 0); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 
@@ -225,7 +225,7 @@ func TestRecordOnDiskHoldsNoPlaintextToken(t *testing.T) {
 
 func TestRecordSealedForAnotherPrincipalCannotBeReplayed(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	other := testOther
 
 	if _, err := store.Save(ctx, testPrincipal, newTestTokens(), 0); err != nil {
@@ -248,7 +248,7 @@ func TestRecordSealedForAnotherPrincipalCannotBeReplayed(t *testing.T) {
 
 func TestLoadRejectsATamperedRecord(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, err := store.Save(ctx, testPrincipal, newTestTokens(), 0); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -307,7 +307,7 @@ func TestAllowsInlineTokensReflectsTheConfiguration(t *testing.T) {
 
 func TestOperationsRejectAnEmptyPrincipal(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, _, err := store.Load(ctx, ""); !errors.Is(err, ErrInvalidPrincipal) {
 		t.Fatalf("Load with empty principal: err = %v, want ErrInvalidPrincipal", err)
@@ -322,7 +322,7 @@ func TestOperationsRejectAnEmptyPrincipal(t *testing.T) {
 
 func TestOperationsHonorContextCancellation(t *testing.T) {
 	store, _ := newTestStore(t)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	if _, _, err := store.Load(ctx, testPrincipal); !errors.Is(err, context.Canceled) {
@@ -339,7 +339,7 @@ func TestOperationsHonorContextCancellation(t *testing.T) {
 func TestSaveLeavesNoTemporaryFileBehind(t *testing.T) {
 	store, _ := newTestStore(t)
 
-	if _, err := store.Save(context.Background(), testPrincipal, newTestTokens(), 0); err != nil {
+	if _, err := store.Save(t.Context(), testPrincipal, newTestTokens(), 0); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 	entries, err := os.ReadDir(filepath.Dir(store.recordPath(testPrincipal)))
@@ -370,7 +370,7 @@ func TestSaveRefusesWhenTheRecordsDirectoryWasRemoved(t *testing.T) {
 		t.Fatalf("remove records directory: %v", err)
 	}
 
-	if _, err := store.Save(context.Background(), testPrincipal, newTestTokens(), 0); err == nil {
+	if _, err := store.Save(t.Context(), testPrincipal, newTestTokens(), 0); err == nil {
 		t.Fatal("Save succeeded after the records directory was removed: it recreated the " +
 			"directory, which splits the cross-process lock domain between the old inode " +
 			"and the new one and lets two processes write concurrently")

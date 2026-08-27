@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"strconv"
 	"strings"
@@ -14,7 +13,7 @@ import (
 func TestCleanupRemovesExpiredStateAndIsIdempotent(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 	seedTransaction(t, opened, grant.client.ID)
 	seedCode(t, opened, grant.principal.ID, grant.client.ID, testCode)
@@ -63,7 +62,7 @@ func TestCleanupRemovesExpiredStateAndIsIdempotent(t *testing.T) {
 func TestCleanupKeepsLiveRows(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 	seedCode(t, opened, grant.principal.ID, grant.client.ID, testCode)
 
@@ -94,7 +93,7 @@ func TestCleanupKeepsLiveRows(t *testing.T) {
 func TestCleanupIsBounded(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 
@@ -135,7 +134,7 @@ func TestCleanupIsBounded(t *testing.T) {
 func TestCleanupRefusesAnUnboundedLimit(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, limit := range []int{-1, 5001} {
 		if _, err := opened.Cleanup(ctx, limit); !errors.Is(err, store.ErrInvalidArgument) {
@@ -149,7 +148,7 @@ func TestCleanupRefusesAnUnboundedLimit(t *testing.T) {
 func TestRevokedTokensSurviveOneRetentionWindow(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	if _, err := opened.RevokeTokenFamily(ctx, grant.familyID, "operator_revoked"); err != nil {
@@ -186,7 +185,7 @@ func TestRevokedTokensSurviveOneRetentionWindow(t *testing.T) {
 func TestCleanupRetainsAConsumedRowWhileItsFamilyIsLive(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened) // generation 0: access 10m, refresh 24h, from t0.
 
 	// Rotate while generation 0 is still comfortably live, so generation 1's own
@@ -235,7 +234,7 @@ func TestCleanupRetainsAConsumedRowWhileItsFamilyIsLive(t *testing.T) {
 func TestCleanupSweepsAConsumedRowOnceItsFamilyIsDead(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	clock.advance(20 * time.Hour)
@@ -290,8 +289,7 @@ func rotateChain(t *testing.T, s *store.SQLiteStore, clock *fakeClock, seed stor
 		clock.advance(time.Hour)
 		tag := strconv.Itoa(generation)
 		next := store.NewSecret("chain-refresh-" + tag)
-		if _, err := s.RotateRefreshToken(context.Background(),
-			rotation(presented, "chain-access-"+tag, next.Reveal())); err != nil {
+		if _, err := s.RotateRefreshToken(t.Context(), rotation(presented, "chain-access-"+tag, next.Reveal())); err != nil {
 			t.Fatalf("RotateRefreshToken to generation %d: %v", generation, err)
 		}
 		secrets[generation] = next
@@ -310,7 +308,7 @@ func rotateChain(t *testing.T, s *store.SQLiteStore, clock *fakeClock, seed stor
 func TestCleanupBoundsConsumedRetentionByGeneration(t *testing.T) {
 	t.Parallel()
 	opened, clock := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened) // generation 0.
 
 	generations := rotateChain(t, opened, clock, grant.refresh, retainedGenerationWindowForTest+1)
@@ -344,7 +342,7 @@ func TestCleanupBoundsConsumedRetentionByGeneration(t *testing.T) {
 func TestRecordAndReadAuditEvents(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	events := []store.AuditEvent{
@@ -393,7 +391,7 @@ func TestRecordAndReadAuditEvents(t *testing.T) {
 func TestAuditEventsRefuseAnythingThatIsNotAReasonCode(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	details := map[string]string{
 		"a bearer token":      "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.c2ln",
@@ -450,7 +448,7 @@ func TestAuditEventsRefuseAnythingThatIsNotAReasonCode(t *testing.T) {
 func TestAuditEventsRefusesAnUnboundedPage(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, limit := range []int{-1, 501} {
 		if _, err := opened.AuditEvents(ctx, limit); !errors.Is(err, store.ErrInvalidArgument) {
@@ -464,7 +462,7 @@ func TestAuditEventsRefusesAnUnboundedPage(t *testing.T) {
 func TestAuditEventsSurviveAnUnlink(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, opened)
 
 	err := opened.RecordAuditEvent(ctx, store.AuditEvent{

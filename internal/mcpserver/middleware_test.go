@@ -156,7 +156,7 @@ func TestHandlerReceivesTheResolvedPrincipal(t *testing.T) {
 	t.Parallel()
 
 	server, probes, _ := tieredServer(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	if _, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -184,7 +184,7 @@ func TestToolArgumentsCannotOverrideThePrincipalThroughTheServer(t *testing.T) {
 	t.Parallel()
 
 	server, probes, _ := tieredServer(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	if _, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -224,7 +224,7 @@ func TestWriteToolIsRefusedWhenTierIsDisabled(t *testing.T) {
 	t.Parallel()
 
 	server, probes, _ := tieredServer(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	session := connectClient(t, ctx, server, nil)
 
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{

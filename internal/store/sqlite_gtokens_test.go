@@ -11,7 +11,7 @@ import (
 func TestGarminTokenRoundTripAndCompareAndSet(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 
 	if _, _, err := opened.Load(ctx, principal.ID); !errors.Is(err, store.ErrNoTokens) {
@@ -58,7 +58,7 @@ func TestGarminTokenRoundTripAndCompareAndSet(t *testing.T) {
 func TestGarminTokenSaveRefusesAStaleVersion(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 
 	first, err := opened.Save(ctx, principal.ID, newSQLTestTokens(), 0)
@@ -88,7 +88,7 @@ func TestGarminTokenSaveRefusesAStaleVersion(t *testing.T) {
 func TestGarminTokenSaveRefusesBadInput(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 
 	_, err := opened.Save(ctx, "", newSQLTestTokens(), 0)
@@ -108,7 +108,7 @@ func TestGarminTokenSaveRefusesBadInput(t *testing.T) {
 func TestGarminTokenDeleteIsIdempotentAndIsolatedPerPrincipal(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	first, err := opened.CreatePrincipal(ctx, "first@example.com")
 	if err != nil {
@@ -150,7 +150,7 @@ func TestGarminTokenDeleteIsIdempotentAndIsolatedPerPrincipal(t *testing.T) {
 func TestGarminTokensStayIsolatedBetweenPrincipals(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	first, err := opened.CreatePrincipal(ctx, "first@example.com")
 	if err != nil {
@@ -189,7 +189,7 @@ func TestGarminTokensStayIsolatedBetweenPrincipals(t *testing.T) {
 func TestSQLiteStoreSatisfiesTheSameConsumerInterfaceAsFileStore(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 
 	// The interface is declared here rather than imported: an interface belongs to its

@@ -59,8 +59,8 @@ func TestFieldErrorUnwrapsBothSentinels(t *testing.T) {
 		t.Error("FieldError does not match its own sentinel")
 	}
 
-	var fieldErr *FieldError
-	if !errors.As(err, &fieldErr) {
+	fieldErr, ok := errors.AsType[*FieldError](err)
+	if !ok {
 		t.Fatal("errors.As does not extract *FieldError")
 	}
 	if fieldErr.Field != keyBindAddress {

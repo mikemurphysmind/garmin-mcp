@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -76,15 +77,9 @@ func (o DatabaseOptions) resolved() (DatabaseOptions, error) {
 	if o.BusyTimeout < 0 || o.MaxOpenConns < 0 || o.ConnMaxIdleTime < 0 {
 		return DatabaseOptions{}, fmt.Errorf("store: negative database option: %w", ErrInvalidConfig)
 	}
-	if o.BusyTimeout == 0 {
-		o.BusyTimeout = defaultBusyTimeout
-	}
-	if o.MaxOpenConns == 0 {
-		o.MaxOpenConns = defaultMaxOpenConns
-	}
-	if o.ConnMaxIdleTime == 0 {
-		o.ConnMaxIdleTime = defaultConnMaxIdleTime
-	}
+	o.BusyTimeout = cmp.Or(o.BusyTimeout, defaultBusyTimeout)
+	o.MaxOpenConns = cmp.Or(o.MaxOpenConns, defaultMaxOpenConns)
+	o.ConnMaxIdleTime = cmp.Or(o.ConnMaxIdleTime, defaultConnMaxIdleTime)
 	return o, nil
 }
 

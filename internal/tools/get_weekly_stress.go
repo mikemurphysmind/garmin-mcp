@@ -1,9 +1,10 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
-	"sort"
+	"slices"
 	"strconv"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -162,8 +163,8 @@ func newWeeklyStressWindow(
 			StressValue: optionalFloat(week.Value),
 		})
 	}
-	sort.SliceStable(out.WeeklyData, func(i, j int) bool {
-		return weekStartKey(out.WeeklyData[i]) > weekStartKey(out.WeeklyData[j])
+	slices.SortStableFunc(out.WeeklyData, func(a, b WeeklyStressEntry) int {
+		return cmp.Compare(weekStartKey(b), weekStartKey(a))
 	})
 	if len(out.WeeklyData) > requested {
 		out.WeeklyData = out.WeeklyData[:requested]

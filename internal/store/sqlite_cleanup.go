@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"fmt"
@@ -80,9 +81,7 @@ func (s *SQLiteStore) Cleanup(ctx context.Context, limit int) (CleanupStats, err
 		return CleanupStats{}, fmt.Errorf("store: cleanup limit %d is outside [0, %d]: %w",
 			limit, maxCleanupLimit, ErrInvalidArgument)
 	}
-	if limit == 0 {
-		limit = defaultCleanupLimit
-	}
+	limit = cmp.Or(limit, defaultCleanupLimit)
 
 	var stats CleanupStats
 	err := s.inTx(ctx, func(tx *sql.Tx) error {

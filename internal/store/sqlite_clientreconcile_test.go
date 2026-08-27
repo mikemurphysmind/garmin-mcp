@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"slices"
 	"testing"
@@ -31,7 +30,7 @@ func configuredClient() store.ClientReconciliation {
 // can ever start.
 func TestReconcileClientCreatesTheOperatorChosenIdentifier(t *testing.T) {
 	sqlite, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	client, err := sqlite.ReconcileClient(ctx, configuredClient())
 	if err != nil {
@@ -57,7 +56,7 @@ func TestReconcileClientCreatesTheOperatorChosenIdentifier(t *testing.T) {
 // fail and must not create a second row.
 func TestReconcileClientIsIdempotentAcrossRestarts(t *testing.T) {
 	sqlite, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	first, err := sqlite.ReconcileClient(ctx, configuredClient())
 	if err != nil {
@@ -82,7 +81,7 @@ func TestReconcileClientIsIdempotentAcrossRestarts(t *testing.T) {
 // the operator has withdrawn.
 func TestReconcileClientAppliesTheConfiguredRedirectURIs(t *testing.T) {
 	sqlite, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, err := sqlite.ReconcileClient(ctx, configuredClient()); err != nil {
 		t.Fatalf("ReconcileClient: %v", err)
@@ -123,7 +122,7 @@ func TestReconcileClientAppliesTheConfiguredRedirectURIs(t *testing.T) {
 // restarted. Reconciliation reports the refusal instead, so start-up fails loudly.
 func TestReconcileClientRefusesToResurrectADisabledClient(t *testing.T) {
 	sqlite, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, err := sqlite.ReconcileClient(ctx, configuredClient()); err != nil {
 		t.Fatalf("ReconcileClient: %v", err)
@@ -145,7 +144,7 @@ func TestReconcileClientRefusesToResurrectADisabledClient(t *testing.T) {
 // that silently became public would be authenticated with no secret at all.
 func TestReconcileClientNeverWidensACapabilityOnItsOwn(t *testing.T) {
 	sqlite, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	confidential := configuredClient()
 	confidential.IsPublic = false
@@ -186,7 +185,7 @@ func TestReconcileClientNeverWidensACapabilityOnItsOwn(t *testing.T) {
 // a registration an operator wrote, not a way around the redirect URI rules.
 func TestReconcileClientValidatesItsInput(t *testing.T) {
 	sqlite, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	cases := map[string]store.ClientReconciliation{
 		"no id":           {Name: testClientName, RedirectURIs: []string{testRedirectURI}},

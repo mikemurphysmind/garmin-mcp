@@ -1,7 +1,6 @@
 package oauthstore_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -13,7 +12,7 @@ const testState = "opaque-client-state"
 
 func TestTransactionRoundTripsEveryField(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	state, err := oauthserver.ParseClientState(testState)
 	if err != nil {
@@ -71,7 +70,7 @@ func assertTransactionMatches(t *testing.T, read, written oauthserver.Transactio
 func TestTransactionReportsNotFound(t *testing.T) {
 	f := newFixture(t)
 
-	_, err := f.adapter.Transaction(context.Background(), lookupOf("never-stored"))
+	_, err := f.adapter.Transaction(t.Context(), lookupOf("never-stored"))
 	if !errors.Is(err, oauthserver.ErrTransactionNotFound) {
 		t.Fatalf("error is %v, want ErrTransactionNotFound", err)
 	}
@@ -81,7 +80,7 @@ func TestTransactionReportsNotFound(t *testing.T) {
 // exactly what "authenticated" means.
 func TestUpdateTransactionAdvancesStageAndVersion(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	written := f.transaction("advance", oauthserver.ClientState{})
 	if err := f.adapter.CreateTransaction(ctx, written); err != nil {
@@ -112,7 +111,7 @@ func TestUpdateTransactionAdvancesStageAndVersion(t *testing.T) {
 
 func TestUpdateTransactionIsACompareAndSet(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	written := f.transaction("cas", oauthserver.ClientState{})
 	if err := f.adapter.CreateTransaction(ctx, written); err != nil {
@@ -132,7 +131,7 @@ func TestUpdateTransactionReportsAMissingRow(t *testing.T) {
 	f := newFixture(t)
 
 	written := f.transaction("gone", oauthserver.ClientState{})
-	err := f.adapter.UpdateTransaction(context.Background(), written, 0)
+	err := f.adapter.UpdateTransaction(t.Context(), written, 0)
 	if !errors.Is(err, oauthserver.ErrTransactionNotFound) {
 		t.Fatalf("error is %v, want ErrTransactionNotFound", err)
 	}
@@ -140,7 +139,7 @@ func TestUpdateTransactionReportsAMissingRow(t *testing.T) {
 
 func TestConsumeTransactionReturnsTheRecordAndDeletesIt(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	written := f.transaction("consume", oauthserver.ClientState{})
 	if err := f.adapter.CreateTransaction(ctx, written); err != nil {
@@ -163,7 +162,7 @@ func TestConsumeTransactionReturnsTheRecordAndDeletesIt(t *testing.T) {
 // record and the row is gone either way, which is how expiry is discarded.
 func TestConsumeTransactionDiscardsAnExpiredRecord(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	written := f.transaction("expired", oauthserver.ClientState{})
 	if err := f.adapter.CreateTransaction(ctx, written); err != nil {
@@ -186,7 +185,7 @@ func TestConsumeTransactionDiscardsAnExpiredRecord(t *testing.T) {
 
 func TestConsentRoundTripsOnTheExactKey(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	f.seedConsent(t)
 
 	consent, err := f.adapter.Consent(ctx, f.consentKey())
@@ -208,7 +207,7 @@ func TestConsentRoundTripsOnTheExactKey(t *testing.T) {
 // wildcard over the one that exists.
 func TestConsentIsNotFoundUnderADifferentResource(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	f.seedConsent(t)
 
 	key := f.consentKey()
@@ -220,7 +219,7 @@ func TestConsentIsNotFoundUnderADifferentResource(t *testing.T) {
 
 func TestRevokeConsentIsIdempotentAndCascades(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	access, _ := f.seedFamily(t, "family-revoke-consent", "revoke-consent")
 
 	if err := f.adapter.RevokeConsent(ctx, f.consentKey()); err != nil {
@@ -246,7 +245,7 @@ func TestRevokeConsentIsIdempotentAndCascades(t *testing.T) {
 // own key, or revoking the principal.
 func TestRevokeConsentDoesNotReachAPreMigrationFamily(t *testing.T) {
 	f := newFixture(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	legacyKey := f.consentKey()
 	legacyKey.Resource = oauthserver.Resource{}

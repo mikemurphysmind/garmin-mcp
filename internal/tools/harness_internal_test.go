@@ -78,7 +78,7 @@ func connectHarness(t *testing.T, server *mcpserver.Server) *mcp.ClientSession {
 	t.Helper()
 
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	done := make(chan struct{})
 	go func() {

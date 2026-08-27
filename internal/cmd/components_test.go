@@ -377,9 +377,9 @@ const testDigestFilePath = "/run/secrets/example-client.sha256"
 func TestAStopTheOperatorAskedForIsNotAFailure(t *testing.T) {
 	t.Parallel()
 
-	stopped, cancel := context.WithCancel(context.Background())
+	stopped, cancel := context.WithCancel(t.Context())
 	cancel()
-	running := context.Background()
+	running := t.Context()
 
 	cases := map[string]struct {
 		ctx  context.Context

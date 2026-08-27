@@ -2,7 +2,6 @@ package cmd_test
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -28,7 +27,7 @@ func runDoctor(t *testing.T, args ...string) (stdout, stderr string, code int) {
 	t.Helper()
 
 	var out, errOut bytes.Buffer
-	code = cmd.Execute(context.Background(), cmd.Options{
+	code = cmd.Execute(t.Context(), cmd.Options{
 		BuildInfo: cmd.BuildInfo{Version: testVersion, Commit: testCommit},
 		Args:      append([]string{cmdDoctor}, args...),
 		Stdout:    &out,

@@ -1,7 +1,6 @@
 package oauthserver
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -67,9 +66,7 @@ func TestTokenHandlerReturnsAnRFC6749Response(t *testing.T) {
 	if body.Scope != testScopeProfile {
 		t.Fatalf("scope = %q", body.Scope)
 	}
-	if _, err := h.srv.VerifyAccessToken(
-		context.Background(), SecretFromString(body.AccessToken),
-	); err != nil {
+	if _, err := h.srv.VerifyAccessToken(t.Context(), SecretFromString(body.AccessToken)); err != nil {
 		t.Fatalf("the returned access token does not verify: %v", err)
 	}
 	if body.RefreshToken == "" || body.RefreshToken == body.AccessToken {

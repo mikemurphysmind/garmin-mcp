@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"database/sql"
 	"path/filepath"
 	"testing"
@@ -104,7 +103,7 @@ func (c *fakeClock) advance(d time.Duration) { c.now = c.now.Add(d) }
 func newTestStore(t *testing.T) (*store.SQLiteStore, *fakeClock) {
 	t.Helper()
 	clock := newFakeClock()
-	opened, err := store.OpenSQLite(context.Background(), store.SQLiteConfig{
+	opened, err := store.OpenSQLite(t.Context(), store.SQLiteConfig{
 		Path: testDBPath(t),
 		Key:  testKey(t),
 		Now:  clock.Now,
@@ -127,7 +126,7 @@ func newTestStoreWithPath(t *testing.T) (*store.SQLiteStore, *fakeClock, string)
 	t.Helper()
 	clock := newFakeClock()
 	path := testDBPath(t)
-	opened, err := store.OpenSQLite(context.Background(), store.SQLiteConfig{
+	opened, err := store.OpenSQLite(t.Context(), store.SQLiteConfig{
 		Path: path,
 		Key:  testKey(t),
 		Now:  clock.Now,
@@ -159,7 +158,7 @@ func newSQLTestTokens() store.TokenSet {
 // seedPrincipal creates a principal with the shared test email.
 func seedPrincipal(t *testing.T, s *store.SQLiteStore) store.Principal {
 	t.Helper()
-	principal, err := s.CreatePrincipal(context.Background(), testEmail)
+	principal, err := s.CreatePrincipal(t.Context(), testEmail)
 	if err != nil {
 		t.Fatalf("CreatePrincipal: %v", err)
 	}
@@ -169,7 +168,7 @@ func seedPrincipal(t *testing.T, s *store.SQLiteStore) store.Principal {
 // seedClient registers a confidential client with one exact redirect URI.
 func seedClient(t *testing.T, s *store.SQLiteStore) store.Client {
 	t.Helper()
-	client, err := s.RegisterClient(context.Background(), store.ClientRegistration{
+	client, err := s.RegisterClient(t.Context(), store.ClientRegistration{
 		Name:         testClientName,
 		RedirectURIs: []string{testRedirectURI},
 		Secret:       store.NewSecret("test-client-secret"),
@@ -192,7 +191,7 @@ type seededGrant struct {
 
 func seedGrant(t *testing.T, s *store.SQLiteStore) seededGrant {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, s)
 	client := seedClient(t, s)
 

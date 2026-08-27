@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -109,8 +110,8 @@ func (c tokenClient) refresh(ctx context.Context, set TokenSet) (TokenSet, error
 }
 
 func isRejectedRefresh(err error) bool {
-	var protocolErr *protocol.Error
-	if !errors.As(err, &protocolErr) {
+	protocolErr, ok := errors.AsType[*protocol.Error](err)
+	if !ok {
 		return false
 	}
 	return protocolErr.Op == protocol.OpRefreshToken &&
@@ -190,10 +191,7 @@ type socialProfileResponse struct {
 // zero account, and it is the caller that decides whether it can proceed without
 // one.
 func (p socialProfileResponse) account() garminAccount {
-	id := strings.TrimSpace(p.ProfileID.String())
-	if id == "" {
-		id = strings.TrimSpace(p.DisplayName)
-	}
+	id := cmp.Or(strings.TrimSpace(p.ProfileID.String()), strings.TrimSpace(p.DisplayName))
 	return garminAccount{accountID: id, displayName: p.DisplayName}
 }
 

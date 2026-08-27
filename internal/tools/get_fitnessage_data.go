@@ -185,6 +185,5 @@ func roundedAge(value client.Number) *float64 {
 	if !ok {
 		return nil
 	}
-	rounded := fitRound(years, placesOne)
-	return &rounded
+	return new(fitRound(years, placesOne))
 }

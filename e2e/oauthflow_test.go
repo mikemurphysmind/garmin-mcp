@@ -118,10 +118,8 @@ func redeemConcurrently(t *testing.T, server remoteServer, form url.Values, n in
 	attempts := make([]concurrentTokenAttempt, n)
 	errs := make([]error, n)
 	var wg sync.WaitGroup
-	wg.Add(n)
 	for i := range attempts {
-		go func(i int) {
-			defer wg.Done()
+		wg.Go(func() {
 			response, err := server.client.PostForm(server.origin+"/token", form)
 			if err != nil {
 				errs[i] = err
@@ -138,7 +136,7 @@ func redeemConcurrently(t *testing.T, server remoteServer, form url.Values, n in
 				body:         body,
 				cacheControl: response.Header.Get("Cache-Control"),
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 

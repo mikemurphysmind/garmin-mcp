@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -35,7 +34,7 @@ func newFeedStore(t *testing.T) (*store.SQLiteStore, *recordingSink) {
 	t.Helper()
 	sink := &recordingSink{}
 	clock := newFakeClock()
-	opened, err := store.OpenSQLite(context.Background(), store.SQLiteConfig{
+	opened, err := store.OpenSQLite(t.Context(), store.SQLiteConfig{
 		Path:        testDBPath(t),
 		Key:         testKey(t),
 		Now:         clock.Now,
@@ -62,8 +61,7 @@ func TestRevocationCascadesPublishAnEvent(t *testing.T) {
 		"consent": {
 			revoke: func(t *testing.T, s *store.SQLiteStore, grant seededGrant) {
 				t.Helper()
-				if _, err := s.RevokeConsent(context.Background(),
-					grant.principal.ID, grant.client.ID); err != nil {
+				if _, err := s.RevokeConsent(t.Context(), grant.principal.ID, grant.client.ID); err != nil {
 					t.Fatalf("RevokeConsent: %v", err)
 				}
 			},
@@ -78,7 +76,7 @@ func TestRevocationCascadesPublishAnEvent(t *testing.T) {
 		"one grant": {
 			revoke: func(t *testing.T, s *store.SQLiteStore, grant seededGrant) {
 				t.Helper()
-				if _, err := s.RevokeConsentFor(context.Background(), store.ConsentKey{
+				if _, err := s.RevokeConsentFor(t.Context(), store.ConsentKey{
 					PrincipalID: grant.principal.ID,
 					ClientID:    grant.client.ID,
 					Resource:    testAudience,
@@ -97,8 +95,7 @@ func TestRevocationCascadesPublishAnEvent(t *testing.T) {
 		"every token of a principal": {
 			revoke: func(t *testing.T, s *store.SQLiteStore, grant seededGrant) {
 				t.Helper()
-				if _, err := s.RevokePrincipalTokens(context.Background(),
-					grant.principal.ID); err != nil {
+				if _, err := s.RevokePrincipalTokens(t.Context(), grant.principal.ID); err != nil {
 					t.Fatalf("RevokePrincipalTokens: %v", err)
 				}
 			},
@@ -112,8 +109,7 @@ func TestRevocationCascadesPublishAnEvent(t *testing.T) {
 		"one family": {
 			revoke: func(t *testing.T, s *store.SQLiteStore, grant seededGrant) {
 				t.Helper()
-				if _, err := s.RevokeTokenFamily(context.Background(),
-					grant.familyID, store.ReasonConsentRevoked); err != nil {
+				if _, err := s.RevokeTokenFamily(t.Context(), grant.familyID, store.ReasonConsentRevoked); err != nil {
 					t.Fatalf("RevokeTokenFamily: %v", err)
 				}
 			},
@@ -129,8 +125,7 @@ func TestRevocationCascadesPublishAnEvent(t *testing.T) {
 		"a garmin unlink": {
 			revoke: func(t *testing.T, s *store.SQLiteStore, grant seededGrant) {
 				t.Helper()
-				if _, err := s.UnlinkGarminAccount(context.Background(),
-					grant.principal.ID); err != nil {
+				if _, err := s.UnlinkGarminAccount(t.Context(), grant.principal.ID); err != nil {
 					t.Fatalf("UnlinkGarminAccount: %v", err)
 				}
 			},
@@ -165,7 +160,7 @@ func TestRevocationCascadesPublishAnEvent(t *testing.T) {
 // one a live session must not survive.
 func TestRefreshTokenReusePublishesTheFamilyRevocation(t *testing.T) {
 	sqlite, sink := newFeedStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	grant := seedGrant(t, sqlite)
 
 	rotation := store.RefreshRotation{
@@ -209,7 +204,7 @@ func TestRefreshTokenReusePublishesTheFamilyRevocation(t *testing.T) {
 // behind it.
 func TestARefusedRevocationPublishesNothing(t *testing.T) {
 	sqlite, sink := newFeedStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	seedGrant(t, sqlite)
 
 	if _, err := sqlite.RevokeTokenFamily(ctx, testUnknownID,
@@ -232,8 +227,7 @@ func TestRevocationsWorkWithNoSink(t *testing.T) {
 	sqlite, _ := newTestStore(t)
 	grant := seedGrant(t, sqlite)
 
-	if _, err := sqlite.RevokeConsent(context.Background(),
-		grant.principal.ID, grant.client.ID); err != nil {
+	if _, err := sqlite.RevokeConsent(t.Context(), grant.principal.ID, grant.client.ID); err != nil {
 		t.Fatalf("RevokeConsent with no sink: %v", err)
 	}
 }

@@ -1,7 +1,6 @@
 package oauthserver
 
 import (
-	"context"
 	"encoding/base64"
 	"errors"
 	"testing"
@@ -51,7 +50,7 @@ func TestCodeGrantStoresTokensBoundToTheGrant(t *testing.T) {
 		t.Fatalf("Token: %v", err)
 	}
 
-	access, err := h.store.AccessToken(context.Background(), got.AccessToken.Lookup())
+	access, err := h.store.AccessToken(t.Context(), got.AccessToken.Lookup())
 	if err != nil {
 		t.Fatalf("the access token is not stored under its digest: %v", err)
 	}
@@ -65,7 +64,7 @@ func TestCodeGrantStoresTokensBoundToTheGrant(t *testing.T) {
 		t.Fatalf("access expiry = %v, want %v", access.ExpiresAt, want)
 	}
 
-	refresh, err := h.store.RefreshToken(context.Background(), got.RefreshToken.Lookup())
+	refresh, err := h.store.RefreshToken(t.Context(), got.RefreshToken.Lookup())
 	if err != nil {
 		t.Fatalf("the refresh token is not stored under its digest: %v", err)
 	}
@@ -171,7 +170,7 @@ func TestCodeGrantIsSingleUse(t *testing.T) {
 
 	// The tokens from the first, legitimate exchange stay valid: replaying a code is
 	// the attacker's failure, not the honest client's.
-	if _, err := h.store.AccessToken(context.Background(), first.AccessToken.Lookup()); err != nil {
+	if _, err := h.store.AccessToken(t.Context(), first.AccessToken.Lookup()); err != nil {
 		t.Fatalf("the first exchange's access token was invalidated: %v", err)
 	}
 }

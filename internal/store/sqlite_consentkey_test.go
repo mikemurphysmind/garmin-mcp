@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -37,7 +36,7 @@ func consentKeyMatrix(principalID, clientID string) []store.ConsentKey {
 func TestConsentKeysDoNotCollide(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 
@@ -76,7 +75,7 @@ func TestConsentKeysDoNotCollide(t *testing.T) {
 func TestGrantConsentForAcceptsAnEmptyScopeSet(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 	key := store.ConsentKey{PrincipalID: principal.ID, ClientID: client.ID}
@@ -98,7 +97,7 @@ func TestGrantConsentForAcceptsAnEmptyScopeSet(t *testing.T) {
 func TestNarrowGrantIsTheEmptyKeyRatherThanAWildcard(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 
@@ -123,7 +122,7 @@ func TestNarrowGrantIsTheEmptyKeyRatherThanAWildcard(t *testing.T) {
 func TestConsentForRefusesAnUnusableKey(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 	client := seedClient(t, opened)
 

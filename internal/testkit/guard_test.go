@@ -1,7 +1,6 @@
 package testkit
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -33,7 +32,7 @@ func doRaw(doer Doer, req *http.Request) error {
 func requestTo(t *testing.T, rawURL string) *http.Request {
 	t.Helper()
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, rawURL, nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, rawURL, nil)
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
@@ -48,8 +47,8 @@ func assertOffOrigin(t *testing.T, err error, origin, attempt string) {
 	if err == nil {
 		t.Fatal("request succeeded, want an off-origin refusal")
 	}
-	var refused *OffOriginError
-	if !errors.As(err, &refused) {
+	refused, ok := errors.AsType[*OffOriginError](err)
+	if !ok {
 		t.Fatalf("err = %v (%T), want *OffOriginError", err, err)
 	}
 	if refused.Origin != origin {

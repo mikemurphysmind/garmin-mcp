@@ -2,7 +2,6 @@ package cmd_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -42,7 +41,7 @@ func TestVersionPrintsInjectedBuildInfo(t *testing.T) {
 			t.Parallel()
 
 			var stdout, stderr bytes.Buffer
-			code := cmd.Execute(context.Background(), cmd.Options{
+			code := cmd.Execute(t.Context(), cmd.Options{
 				BuildInfo: tc.info,
 				Args:      []string{cmdVersion},
 				Stdout:    &stdout,
@@ -66,7 +65,7 @@ func TestVersionWritesNothingToStderr(t *testing.T) {
 	t.Parallel()
 
 	var stdout, stderr bytes.Buffer
-	code := cmd.Execute(context.Background(), cmd.Options{
+	code := cmd.Execute(t.Context(), cmd.Options{
 		BuildInfo: cmd.BuildInfo{Version: "v0.0.1", Commit: "abcdef1"},
 		Args:      []string{cmdVersion},
 		Stdout:    &stdout,

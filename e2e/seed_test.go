@@ -3,7 +3,6 @@
 package e2e
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -76,7 +75,7 @@ func openSeedStore(t *testing.T, dir string) *store.SQLiteStore {
 	if err != nil {
 		t.Fatalf("load the seeded master key: %v", err)
 	}
-	sqlite, err := store.OpenSQLite(context.Background(), store.SQLiteConfig{
+	sqlite, err := store.OpenSQLite(t.Context(), store.SQLiteConfig{
 		Path: seedDatabasePath(dir),
 		Key:  key,
 	})
@@ -111,7 +110,7 @@ const remoteClientName = "End-to-end client"
 func seedClient(t *testing.T, sqlite *store.SQLiteStore) {
 	t.Helper()
 
-	_, err := sqlite.ReconcileClient(context.Background(), store.ClientReconciliation{
+	_, err := sqlite.ReconcileClient(t.Context(), store.ClientReconciliation{
 		ID:           remoteClientID,
 		Name:         remoteClientName,
 		RedirectURIs: []string{remoteRedirectURI},
@@ -128,7 +127,7 @@ func seedClient(t *testing.T, sqlite *store.SQLiteStore) {
 func seedPrincipal(t *testing.T, sqlite *store.SQLiteStore, email string) string {
 	t.Helper()
 
-	principal, err := sqlite.CreatePrincipal(context.Background(), email)
+	principal, err := sqlite.CreatePrincipal(t.Context(), email)
 	if err != nil {
 		t.Fatalf("seed principal %s: %v", email, err)
 	}
@@ -158,7 +157,7 @@ func pkcePair(t *testing.T) (verifier, challenge string) {
 func seedConsent(t *testing.T, sqlite *store.SQLiteStore, p seedAuthCodeParams) {
 	t.Helper()
 
-	err := sqlite.GrantConsentFor(context.Background(), store.ConsentKey{
+	err := sqlite.GrantConsentFor(t.Context(), store.ConsentKey{
 		PrincipalID: p.principalID,
 		ClientID:    p.clientID,
 		RedirectURI: p.redirectURI,
@@ -212,7 +211,7 @@ func seedAuthCode(t *testing.T, sqlite *store.SQLiteStore, p seedAuthCodeParams)
 	handle := store.NewSecret(oauthserver.SecretFromString(code).Lookup().Hex())
 
 	now := time.Now()
-	err := sqlite.PutAuthCode(context.Background(), store.AuthCodeDraft{
+	err := sqlite.PutAuthCode(t.Context(), store.AuthCodeDraft{
 		Code:          handle,
 		PrincipalID:   p.principalID,
 		ClientID:      p.clientID,

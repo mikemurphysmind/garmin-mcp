@@ -18,12 +18,9 @@ func TestRegistryInterleavedTransactionsAreIsolated(t *testing.T) {
 
 	const logins = 16
 	var wg sync.WaitGroup
-	wg.Add(logins)
 
 	for i := range logins {
-		go func(i int) {
-			defer wg.Done()
-
+		wg.Go(func() {
 			principal := fmt.Sprintf("principal-%d", i)
 			csrf := fmt.Sprintf("csrf-secret-04%02d", i)
 			cookie := fmt.Sprintf("cookie-secret-05%02d", i)
@@ -49,7 +46,7 @@ func TestRegistryInterleavedTransactionsAreIsolated(t *testing.T) {
 			if err := attempt.Claim(); err != nil {
 				t.Errorf("%s: Claim: %v", principal, err)
 			}
-		}(i)
+		})
 	}
 
 	wg.Wait()
@@ -76,12 +73,9 @@ func TestRegistryConcurrentAttemptAdmitsOneCompletion(t *testing.T) {
 		mu        sync.Mutex
 		succeeded int
 	)
-	wg.Add(callers)
 
 	for range callers {
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			attempt, err := registry.Attempt(id, principalA)
 			if err != nil {
 				return
@@ -93,7 +87,7 @@ func TestRegistryConcurrentAttemptAdmitsOneCompletion(t *testing.T) {
 				succeeded++
 				mu.Unlock()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

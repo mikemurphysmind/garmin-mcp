@@ -1,7 +1,6 @@
 package store_test
 
 import (
-	"context"
 	"errors"
 	"os"
 	"strings"
@@ -14,7 +13,7 @@ import (
 func TestCreatePrincipalMintsAUUIDAndNormalizesTheEmail(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	principal, err := opened.CreatePrincipal(ctx, "  Rider@Example.COM  ")
 	if err != nil {
@@ -49,7 +48,7 @@ func TestCreatePrincipalMintsAUUIDAndNormalizesTheEmail(t *testing.T) {
 func TestCreatePrincipalRefusesADuplicateEmail(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, err := opened.CreatePrincipal(ctx, testEmail); err != nil {
 		t.Fatalf("first CreatePrincipal: %v", err)
@@ -63,7 +62,7 @@ func TestCreatePrincipalRefusesADuplicateEmail(t *testing.T) {
 func TestCreatePrincipalRefusesAnUnusableEmail(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, email := range []string{
 		"", "   ", "no-at-sign", "@leading", "trailing@", "two@at@signs",
@@ -78,7 +77,7 @@ func TestCreatePrincipalRefusesAnUnusableEmail(t *testing.T) {
 func TestPrincipalLookupsReportAnUnknownPrincipal(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if _, err := opened.PrincipalByID(ctx, "nobody"); !errors.Is(err, store.ErrPrincipalNotFound) {
 		t.Errorf("PrincipalByID: err = %v, want ErrPrincipalNotFound", err)
@@ -96,7 +95,7 @@ func TestPrincipalLookupsReportAnUnknownPrincipal(t *testing.T) {
 func TestLinkGarminAccountStoresAnEncryptedLinkage(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 
 	identity := store.GarminIdentity{
@@ -132,7 +131,7 @@ func TestLinkGarminAccountStoresAnEncryptedLinkage(t *testing.T) {
 // both as the HMAC column and inside the envelope.
 func TestDatabaseHoldsNoPlaintextGarminAccountID(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	path := testDBPath(t)
 
 	opened, err := store.OpenSQLite(ctx, store.SQLiteConfig{Path: path, Key: testKey(t)})
@@ -181,7 +180,7 @@ func TestDatabaseHoldsNoPlaintextGarminAccountID(t *testing.T) {
 func TestConcurrentGarminLinkElectsOneOwner(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	first, err := opened.CreatePrincipal(ctx, "first@example.com")
 	if err != nil {
@@ -253,7 +252,7 @@ func electLinkWinner(t *testing.T, principals []string, results []error) string 
 func TestLinkingTheSameAccountToTheSamePrincipalIsIdempotent(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 
 	account := store.NewSecret(testGarminAccount)
@@ -279,7 +278,7 @@ func TestLinkingTheSameAccountToTheSamePrincipalIsIdempotent(t *testing.T) {
 func TestLinkGarminAccountRefusesBadInput(t *testing.T) {
 	t.Parallel()
 	opened, _ := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, opened)
 
 	err := opened.LinkGarminAccount(ctx, principal.ID, store.GarminIdentity{})
@@ -303,7 +302,7 @@ func TestLinkGarminAccountRefusesBadInput(t *testing.T) {
 // a second derivation root, which would silently orphan every existing lookup value.
 func TestOpeningWithTheWrongKeyRefuses(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	path := testDBPath(t)
 
 	first, err := store.OpenSQLite(ctx, store.SQLiteConfig{Path: path, Key: testKey(t)})

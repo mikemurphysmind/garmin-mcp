@@ -74,7 +74,7 @@ func TestDoerWithTimeoutBoundsOneRequest(t *testing.T) {
 	))
 
 	loginURL := srv.Hosts(protocol.DomainGlobal).MobileLoginURL()
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, loginURL, strings.NewReader("{}"))
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, loginURL, strings.NewReader("{}"))
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}

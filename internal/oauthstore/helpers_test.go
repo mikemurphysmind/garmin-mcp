@@ -81,7 +81,7 @@ type fixture struct {
 
 func newFixture(t *testing.T) fixture {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	clk := newClock()
 	sqlite := openStore(t, clk)
 
@@ -158,7 +158,7 @@ func openStoreWithSink(t *testing.T, clk *clock, sink store.RevocationSink) *sto
 	if err != nil {
 		t.Fatalf("GenerateKey: %v", err)
 	}
-	opened, err := store.OpenSQLite(context.Background(), store.SQLiteConfig{
+	opened, err := store.OpenSQLite(t.Context(), store.SQLiteConfig{
 		Path:        filepath.Join(resolved, "garmin-mcp.db"),
 		Key:         key,
 		Now:         clk.Now,
@@ -179,7 +179,7 @@ func openStoreWithSink(t *testing.T, clk *clock, sink store.RevocationSink) *sto
 // underlying store, for a test that needs to assert a cascade announced itself.
 func newFixtureWithSink(t *testing.T) (fixture, *recordingSink) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	clk := newClock()
 	sink := &recordingSink{}
 	sqlite := openStoreWithSink(t, clk, sink)
@@ -288,7 +288,7 @@ func (f fixture) consentKey() oauthserver.ConsentKey {
 // seedConsent records the consent every token grant needs.
 func (f fixture) seedConsent(t *testing.T) {
 	t.Helper()
-	err := f.adapter.SaveConsent(context.Background(), oauthserver.Consent{
+	err := f.adapter.SaveConsent(t.Context(), oauthserver.Consent{
 		Key:       f.consentKey(),
 		Scopes:    f.scopes,
 		GrantedAt: f.clock.Now(),
@@ -365,7 +365,7 @@ func (f fixture) seedFamily(t *testing.T, family oauthserver.FamilyID, label str
 	t.Helper()
 	f.seedConsent(t)
 	access, refresh := f.pair(family, label, 0)
-	if err := f.adapter.SaveTokenPair(context.Background(), access, refresh); err != nil {
+	if err := f.adapter.SaveTokenPair(t.Context(), access, refresh); err != nil {
 		t.Fatalf("SaveTokenPair: %v", err)
 	}
 	return access, refresh

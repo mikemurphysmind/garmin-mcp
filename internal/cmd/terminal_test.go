@@ -135,7 +135,7 @@ func TestCompleteTerminalMFADescribesTheChallengeBeforeAsking(t *testing.T) {
 		MFAMethod: testMFAMethod, DeliveryUncertain: true,
 	}
 
-	err := completeTerminalMFA(context.Background(), loginSeam{},
+	err := completeTerminalMFA(t.Context(), loginSeam{},
 		fakeTerminal(t, testTerminalCode+"\n"), &prompt, challenge)
 
 	if !errors.Is(err, ErrNoTerminal) {
@@ -205,7 +205,7 @@ func TestCompleteMFALoopRetriesARejectedCodeButNotATerminalFailure(t *testing.T)
 		}}
 		challenge := loginweb.Attempt{NeedsMFA: true, TransactionID: testMFATransactionID}
 
-		err := completeMFALoop(context.Background(), seam, &prompt, challenge,
+		err := completeMFALoop(t.Context(), seam, &prompt, challenge,
 			scriptedCodes(testTerminalCode, testTerminalCode))
 		if err != nil {
 			t.Fatalf("completeMFALoop = %v, want the retry to succeed", err)
@@ -225,7 +225,7 @@ func TestCompleteMFALoopRetriesARejectedCodeButNotATerminalFailure(t *testing.T)
 		}}
 		challenge := loginweb.Attempt{NeedsMFA: true, TransactionID: testMFATransactionID}
 
-		err := completeMFALoop(context.Background(), seam, &prompt, challenge,
+		err := completeMFALoop(t.Context(), seam, &prompt, challenge,
 			scriptedCodes(testTerminalCode))
 		if !errors.Is(err, ErrLoginNotCompleted) {
 			t.Fatalf("err = %v, want ErrLoginNotCompleted", err)
@@ -317,7 +317,7 @@ func TestLaunchBrowserOpensOnlyThisRunsLoopbackPage(t *testing.T) {
 		t.Run(endpoint, func(t *testing.T) {
 			t.Parallel()
 
-			err := launchBrowser(context.Background(), endpoint)
+			err := launchBrowser(t.Context(), endpoint)
 			if !errors.Is(err, ErrNoBrowser) {
 				t.Errorf("launchBrowser(%q) = %v, want ErrNoBrowser", endpoint, err)
 			}

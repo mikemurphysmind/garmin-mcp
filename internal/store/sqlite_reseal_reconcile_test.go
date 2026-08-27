@@ -69,7 +69,7 @@ func TestResealReconcilesAStalePrincipalIdentityKeyVersionColumnWithoutLoopingFo
 	oldKey := mustGenerateKey(t, 1)
 
 	seed := openStoreWithKeys(t, path, oldKey, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	principal := seedPrincipal(t, seed)
 	if err := seed.LinkGarminAccount(ctx, principal.ID, store.GarminIdentity{
 		AccountID: store.NewSecret(testGarminAccount), DisplayName: testDisplayName,
@@ -92,7 +92,7 @@ func TestResealReconcilesAStalePrincipalIdentityKeyVersionColumnWithoutLoopingFo
 
 	rotating := openStoreWithKeys(t, path, targetKey, []cryptostore.Key{oldKey})
 
-	resealCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	resealCtx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	report, err := rotating.ResealToActiveKey(resealCtx)
 	if err != nil {
@@ -186,7 +186,7 @@ func TestResealReconcilesAStaleAuthTransactionStateKeyVersionColumnWithoutLoopin
 	oldKey := mustGenerateKey(t, 1)
 
 	seed := openStoreWithKeys(t, path, oldKey, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 	client := seedClient(t, seed)
 	handle := store.NewSecret("transaction-handle-under-test")
 	if err := seed.PutAuthTransaction(ctx, store.AuthTransactionDraft{
@@ -216,7 +216,7 @@ func TestResealReconcilesAStaleAuthTransactionStateKeyVersionColumnWithoutLoopin
 
 	rotating := openStoreWithKeys(t, path, targetKey, []cryptostore.Key{oldKey})
 
-	resealCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	resealCtx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	report, err := rotating.ResealToActiveKey(resealCtx)
 	if err != nil {
@@ -310,9 +310,9 @@ func TestResealReconcilesAStaleIndexRootKeyVersionColumnWithoutLoopingForever(t 
 	}
 
 	rotating := openStoreWithKeys(t, path, targetKey, []cryptostore.Key{oldKey})
-	ctx := context.Background()
+	ctx := t.Context()
 
-	resealCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	resealCtx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	report, err := rotating.ResealToActiveKey(resealCtx)
 	if err != nil {

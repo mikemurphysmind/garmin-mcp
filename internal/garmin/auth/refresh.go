@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -96,10 +97,7 @@ func NewRefresher(cfg RefreshConfig) (*Refresher, error) {
 	if clock == nil {
 		clock = systemClock{}
 	}
-	window := cfg.SafetyWindow
-	if window == 0 {
-		window = DefaultRefreshWindow
-	}
+	window := cmp.Or(cfg.SafetyWindow, DefaultRefreshWindow)
 	logger := cfg.Logger
 	if logger == nil {
 		logger = slog.Default()

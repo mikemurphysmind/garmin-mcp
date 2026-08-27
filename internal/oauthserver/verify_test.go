@@ -1,7 +1,6 @@
 package oauthserver
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +13,7 @@ func TestVerifyAccessTokenAcceptsAFreshToken(t *testing.T) {
 	h := newHarness(t)
 	tokens := h.firstTokens(t)
 
-	info, err := h.srv.VerifyAccessToken(context.Background(), tokens.AccessToken)
+	info, err := h.srv.VerifyAccessToken(t.Context(), tokens.AccessToken)
 	if err != nil {
 		t.Fatalf("VerifyAccessToken: %v", err)
 	}
@@ -40,18 +39,17 @@ func TestVerifyAccessTokenDistinguishesMissingFromInvalid(t *testing.T) {
 	h := newHarness(t)
 	tokens := h.firstTokens(t)
 
-	if _, err := h.srv.VerifyAccessToken(context.Background(), Secret{}); !errors.Is(
+	if _, err := h.srv.VerifyAccessToken(t.Context(), Secret{}); !errors.Is(
 		err, ErrMissingToken) {
 		t.Fatalf("an absent token: error = %v, want ErrMissingToken", err)
 	}
-	if _, err := h.srv.VerifyAccessToken(
-		context.Background(), SecretFromString("not-a-real-token"),
-	); !errors.Is(err, ErrInvalidToken) {
+	if _, err := h.srv.VerifyAccessToken(t.Context(), SecretFromString("not-a-real-token")); !errors.Is(
+		err, ErrInvalidToken) {
 		t.Fatalf("an unknown token: error = %v, want ErrInvalidToken", err)
 	}
 
 	h.advance(h.srv.AccessTokenTTL())
-	_, err := h.srv.VerifyAccessToken(context.Background(), tokens.AccessToken)
+	_, err := h.srv.VerifyAccessToken(t.Context(), tokens.AccessToken)
 	if !errors.Is(err, ErrInvalidToken) || !errors.Is(err, ErrTokenExpired) {
 		t.Fatalf("an expired token: error = %v, want ErrInvalidToken and ErrTokenExpired", err)
 	}
@@ -60,15 +58,15 @@ func TestVerifyAccessTokenDistinguishesMissingFromInvalid(t *testing.T) {
 func TestVerifyAccessTokenRefusesARevokedFamily(t *testing.T) {
 	h := newHarness(t)
 	tokens := h.firstTokens(t)
-	stored, err := h.store.AccessToken(context.Background(), tokens.AccessToken.Lookup())
+	stored, err := h.store.AccessToken(t.Context(), tokens.AccessToken.Lookup())
 	if err != nil {
 		t.Fatalf("reading the access token: %v", err)
 	}
-	if err := h.store.RevokeFamily(context.Background(), stored.Family, RevokeReasonClient); err != nil {
+	if err := h.store.RevokeFamily(t.Context(), stored.Family, RevokeReasonClient); err != nil {
 		t.Fatalf("RevokeFamily: %v", err)
 	}
 
-	_, err = h.srv.VerifyAccessToken(context.Background(), tokens.AccessToken)
+	_, err = h.srv.VerifyAccessToken(t.Context(), tokens.AccessToken)
 
 	if !errors.Is(err, ErrInvalidToken) || !errors.Is(err, ErrTokenRevoked) {
 		t.Fatalf("error = %v, want ErrInvalidToken and ErrTokenRevoked", err)
@@ -93,13 +91,13 @@ func TestVerifyAccessTokenValidatesTheAudienceExactly(t *testing.T) {
 		IssuedAt:  testNow,
 		ExpiresAt: testNow.Add(time.Hour),
 	}
-	if err := h.store.SaveTokenPair(context.Background(), record, RefreshToken{
+	if err := h.store.SaveTokenPair(t.Context(), record, RefreshToken{
 		Lookup: Lookup{1}, Family: record.Family,
 	}); err != nil {
 		t.Fatalf("SaveTokenPair: %v", err)
 	}
 
-	_, err = h.srv.VerifyAccessToken(context.Background(), foreign)
+	_, err = h.srv.VerifyAccessToken(t.Context(), foreign)
 
 	if !errors.Is(err, ErrInvalidToken) {
 		t.Fatalf("error = %v, want ErrInvalidToken", err)
@@ -253,7 +251,7 @@ func TestRequireBearerTokenIgnoresATokenOutsideTheHeader(t *testing.T) {
 }
 
 func TestTokenInfoFromContextFailsWithoutMiddleware(t *testing.T) {
-	if _, err := TokenInfoFromContext(context.Background()); !errors.Is(err, ErrMissingToken) {
+	if _, err := TokenInfoFromContext(t.Context()); !errors.Is(err, ErrMissingToken) {
 		t.Fatalf("error = %v, want ErrMissingToken", err)
 	}
 }
@@ -264,7 +262,7 @@ func TestTokenVerifierMatchesTheSDKShape(t *testing.T) {
 	verifier := h.srv.TokenVerifier()
 
 	req := httptest.NewRequest(http.MethodPost, "/mcp", nil)
-	info, err := verifier(context.Background(), tokens.AccessToken.Reveal(), req)
+	info, err := verifier(t.Context(), tokens.AccessToken.Reveal(), req)
 	if err != nil {
 		t.Fatalf("verifier: %v", err)
 	}
@@ -285,7 +283,7 @@ func TestTokenVerifierMatchesTheSDKShape(t *testing.T) {
 		t.Fatalf("Extra[resource] = %v", got)
 	}
 
-	if _, err := verifier(context.Background(), "not-a-real-token", req); err == nil {
+	if _, err := verifier(t.Context(), "not-a-real-token", req); err == nil {
 		t.Fatal("the verifier accepted an unknown token")
 	}
 }

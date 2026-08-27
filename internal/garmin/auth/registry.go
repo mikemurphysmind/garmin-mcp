@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"cmp"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -87,18 +88,10 @@ func (c RegistryConfig) withDefaults() (RegistryConfig, error) {
 	}
 
 	out := c
-	if out.TTL == 0 {
-		out.TTL = DefaultTransactionTTL
-	}
-	if out.MaxAttempts == 0 {
-		out.MaxAttempts = DefaultMaxAttempts
-	}
-	if out.MaxEntries == 0 {
-		out.MaxEntries = DefaultMaxTransactions
-	}
-	if out.MaxPendingBytes == 0 {
-		out.MaxPendingBytes = DefaultMaxPendingBytes
-	}
+	out.TTL = cmp.Or(out.TTL, DefaultTransactionTTL)
+	out.MaxAttempts = cmp.Or(out.MaxAttempts, DefaultMaxAttempts)
+	out.MaxEntries = cmp.Or(out.MaxEntries, DefaultMaxTransactions)
+	out.MaxPendingBytes = cmp.Or(out.MaxPendingBytes, DefaultMaxPendingBytes)
 	if out.Clock == nil {
 		out.Clock = systemClock{}
 	}

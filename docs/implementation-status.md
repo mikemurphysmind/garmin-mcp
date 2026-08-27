@@ -8,7 +8,7 @@ Every stopping point updates this file in the same commit as the work it
 describes. Never mark an item done on the strength of a placeholder or
 `not implemented` handler.
 
-Last updated: 2026-08-21.
+Last updated: 2026-08-27.
 
 ## Phase status
 
@@ -72,6 +72,61 @@ Statement coverage from `go test -count=1 -cover ./...`, measured on 2026-08-18.
 
 Every package is at or above the 80% floor `AGENTS.md`'s "Testing" section
 states as universal, enforced by `ci.yaml` in both directions.
+
+## 2026-08-27: modern Go idioms applied across the tree
+
+The Go 1.27 baseline landed on 2026-08-21 with `go fix ./...`, which covers the
+standard-library and composite-literal rewrites the tool knows about. It does not
+cover the idiom set the Modern Go Guidelines catalogue carries, so that set was
+applied by hand here. Behavior is unchanged everywhere; this is a readability and
+idiom pass, not a functional one.
+
+| Idiom | Sites |
+|-------|-------|
+| `t.Context()` in place of `context.Background()` in tests | 512 |
+| `errors.AsType[T]` in place of `errors.As` | 35 |
+| `cmp.Or` for a zero-value fallback | 24 |
+| `new(value)` for a temporary that existed only to be addressed | 14 |
+| `wg.Go` in place of `wg.Add`/`go func`/`defer wg.Done` | 10 |
+| `slices.Sorted`/`SortFunc`/`SortStableFunc` in place of `sort.*` | 9 |
+| `omitzero` on non-pointer scalar JSON fields | 6 |
+| `strings.Cut`, `slices.Contains`, `range` over an int, `atomic.Int32`, `sync.OnceFunc` | 1 each |
+
+Two of those needed a decision rather than a rewrite.
+
+**`omitzero` cannot move a tool contract, and the reason is not obvious.** The
+`internal/tools` output structs are snapshot-tested against `compat/tools.json`,
+so a tag change that altered a generated schema would be a contract break.
+`jsonschema-go` decides optionality in `infer.go:342` with
+`!info.settings["omitempty"] && !info.settings["omitzero"]`, so the two spellings
+are interchangeable there and the snapshots cannot notice. The hazard is the
+opposite case: `omitempty` is a **no-op** on a non-pointer struct or `time.Time`
+field, so swapping one of those to `omitzero` starts omitting it and does change
+the wire output. No bare struct field in this repository carries `omitempty`, so
+only scalars were switched. Check that again before extending this, and check it
+against the pinned `jsonschema-go` version, which was reached transitively
+through the go-sdk.
+
+**The `t.Context()` sweep was done with a parser, not a regular expression.** Its
+failure mode is silent: `t.Context()` is cancelled when cleanup begins, so
+rewriting a call inside a `t.Cleanup` or `defer` body hands that code a dead
+context, and nothing in the compiler or the type checker objects. A throwaway
+`go/ast` rewriter resolved the nearest `*testing.T`/`*testing.B` in scope and
+skipped every call site under a `Cleanup` or `defer` node. Fourteen
+`context.Background()` calls survive on purpose: the `live/` suite-scoped helpers,
+which must outlive any individual test, and helpers that take no `t` at all.
+
+Deliberately not applied. `encoding/json/v2` is for new JSON code; the guideline
+itself says to leave existing `encoding/json` alone absent an explicit migration,
+and migrating this repository's tolerant Garmin decoders is its own piece of work
+with its own risk. The standard-library `uuid` package, `URL.Clone`, promoted
+embedded-field literals, generic methods, method-aware `ServeMux` patterns,
+`SplitSeq` and `slices.Collect` have no call sites here — the tree already
+conforms or has nothing of that shape.
+
+Verified green before commit: `gofmt -l`, `go build ./...`, `go vet` under the
+untagged, `fakegarmin`, `e2e` and `garminlive` profiles, `go test -race` untagged
+and under `fakegarmin`, the `e2e` suite, and `golangci-lint run` at zero issues.
 
 ## 2026-08-21: Go 1.27.0 toolchain baseline
 

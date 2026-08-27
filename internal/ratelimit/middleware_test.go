@@ -43,7 +43,7 @@ func writeClassifier(string) ratelimit.Kind { return ratelimit.KindWrite }
 func resolvedContext(t *testing.T, id string) context.Context {
 	t.Helper()
 
-	return identity.WithPrincipal(context.Background(), mustPrincipal(t, id))
+	return identity.WithPrincipal(t.Context(), mustPrincipal(t, id))
 }
 
 func TestMiddlewarePassesAnAllowedCallThrough(t *testing.T) {
@@ -199,7 +199,7 @@ func TestMiddlewareRefusesACallWithNoResolvedPrincipal(t *testing.T) {
 	handler := &countingHandler{}
 	wrapped := ratelimit.Middleware(limiter, readOnlyClassifier, nil)(handler.handle)
 
-	result, err := wrapped(context.Background(), "tools/call", callToolRequest("get_activities"))
+	result, err := wrapped(t.Context(), "tools/call", callToolRequest("get_activities"))
 	if err != nil {
 		t.Fatalf("an unresolved principal must not produce a transport error, got %v", err)
 	}

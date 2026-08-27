@@ -246,7 +246,7 @@ func TestLaunchBrowserRefusesAnythingButThisRunsPage(t *testing.T) {
 // TestIsGracefulStopTreatsACancelledRunAsClean keeps a supervisor's stop out of the
 // failure exit codes.
 func TestIsGracefulStopTreatsACancelledRunAsClean(t *testing.T) {
-	cancelled, cancel := context.WithCancel(context.Background())
+	cancelled, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	tests := []struct {
@@ -255,15 +255,15 @@ func TestIsGracefulStopTreatsACancelledRunAsClean(t *testing.T) {
 		err  error
 		want bool
 	}{
-		{name: "no error", ctx: context.Background(), want: true},
-		{name: "cancelled error", ctx: context.Background(), err: context.Canceled, want: true},
+		{name: "no error", ctx: t.Context(), want: true},
+		{name: "cancelled error", ctx: t.Context(), err: context.Canceled, want: true},
 		{
 			name: "io failure after cancellation",
 			ctx:  cancelled, err: errors.New("read: closed"), want: true,
 		},
 		{
 			name: "genuine failure",
-			ctx:  context.Background(), err: errors.New("read: closed"), want: false,
+			ctx:  t.Context(), err: errors.New("read: closed"), want: false,
 		},
 	}
 

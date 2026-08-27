@@ -1,7 +1,6 @@
 package oauthserver
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"sync"
@@ -49,11 +48,11 @@ func TestRefreshRotatesOnEveryUse(t *testing.T) {
 		t.Fatal("rotation changed the scopes or the resource")
 	}
 
-	rotated, err := h.store.RefreshToken(context.Background(), second.RefreshToken.Lookup())
+	rotated, err := h.store.RefreshToken(t.Context(), second.RefreshToken.Lookup())
 	if err != nil {
 		t.Fatalf("the rotated refresh token is not stored: %v", err)
 	}
-	original, err := h.store.AccessToken(context.Background(), first.AccessToken.Lookup())
+	original, err := h.store.AccessToken(t.Context(), first.AccessToken.Lookup())
 	if err != nil {
 		t.Fatalf("reading the original access token: %v", err)
 	}
@@ -80,7 +79,7 @@ func TestRefreshRotationChainsAcrossGenerations(t *testing.T) {
 		if err != nil {
 			t.Fatalf("rotation %d: %v", generation, err)
 		}
-		stored, err := h.store.RefreshToken(context.Background(), next.RefreshToken.Lookup())
+		stored, err := h.store.RefreshToken(t.Context(), next.RefreshToken.Lookup())
 		if err != nil {
 			t.Fatalf("rotation %d is not stored: %v", generation, err)
 		}
@@ -101,7 +100,7 @@ func TestRefreshReuseRevokesTheWholeFamily(t *testing.T) {
 	if err != nil {
 		t.Fatalf("refresh: %v", err)
 	}
-	family, err := h.store.RefreshToken(context.Background(), second.RefreshToken.Lookup())
+	family, err := h.store.RefreshToken(t.Context(), second.RefreshToken.Lookup())
 	if err != nil {
 		t.Fatalf("reading the rotated token: %v", err)
 	}
@@ -123,9 +122,7 @@ func TestRefreshReuseRevokesTheWholeFamily(t *testing.T) {
 	if _, err := h.exchange(t, refreshRequest(second.RefreshToken)); err == nil {
 		t.Fatal("the live refresh token still worked after its family was revoked")
 	}
-	if _, err := h.store.AccessToken(
-		context.Background(), second.AccessToken.Lookup(),
-	); !errors.Is(err, ErrTokenRevoked) {
+	if _, err := h.store.AccessToken(t.Context(), second.AccessToken.Lookup()); !errors.Is(err, ErrTokenRevoked) {
 		t.Fatalf("the access token survived family revocation: %v", err)
 	}
 }
@@ -202,7 +199,7 @@ func TestRefreshMayNarrowScope(t *testing.T) {
 	if narrowed.Scopes.String() != testScopeProfile {
 		t.Fatalf("Scopes = %q, want the narrowed set", narrowed.Scopes)
 	}
-	stored, err := h.store.AccessToken(context.Background(), narrowed.AccessToken.Lookup())
+	stored, err := h.store.AccessToken(t.Context(), narrowed.AccessToken.Lookup())
 	if err != nil {
 		t.Fatalf("reading the narrowed access token: %v", err)
 	}
@@ -242,7 +239,7 @@ func TestRefreshReplayOfAConsumedAndExpiredTokenRevokesTheFamily(t *testing.T) {
 	if err != nil {
 		t.Fatalf("refresh: %v", err)
 	}
-	family, err := h.store.RefreshToken(context.Background(), second.RefreshToken.Lookup())
+	family, err := h.store.RefreshToken(t.Context(), second.RefreshToken.Lookup())
 	if err != nil {
 		t.Fatalf("reading the rotated token: %v", err)
 	}
@@ -380,7 +377,7 @@ func TestRefreshReplayOfAConsumedButLiveTokenStillUsesTheTransactionalPath(t *te
 	if err != nil {
 		t.Fatalf("refresh: %v", err)
 	}
-	family, err := h.store.RefreshToken(context.Background(), second.RefreshToken.Lookup())
+	family, err := h.store.RefreshToken(t.Context(), second.RefreshToken.Lookup())
 	if err != nil {
 		t.Fatalf("reading the rotated token: %v", err)
 	}
@@ -424,7 +421,7 @@ func TestRefreshExpiredButNeverConsumedTokenIsNotTreatedAsReuse(t *testing.T) {
 	if got := tokenErr.Description(); got != "The refresh token has expired." {
 		t.Fatalf("Description() = %q, want the plain expired description", got)
 	}
-	stored, err := h.store.RefreshToken(context.Background(), first.RefreshToken.Lookup())
+	stored, err := h.store.RefreshToken(t.Context(), first.RefreshToken.Lookup())
 	if err != nil {
 		t.Fatalf("reading the refresh token: %v", err)
 	}
@@ -457,21 +454,19 @@ func TestConcurrentRefreshGrantCallsStillProduceExactlyOneWinner(t *testing.T) {
 	const attempts = 8
 	var (
 		wg        sync.WaitGroup
-		successes int32
+		successes atomic.Int32
 	)
-	wg.Add(attempts)
 	for range attempts {
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			if _, err := h.exchange(t, refreshRequest(first.RefreshToken)); err == nil {
-				atomic.AddInt32(&successes, 1)
+				successes.Add(1)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 
-	if successes != 1 {
-		t.Fatalf("successes = %d, want exactly 1", successes)
+	if got := successes.Load(); got != 1 {
+		t.Fatalf("successes = %d, want exactly 1", got)
 	}
 	if h.store.rotations != 1 {
 		t.Fatalf("store recorded %d rotations, want exactly 1", h.store.rotations)
@@ -481,11 +476,11 @@ func TestConcurrentRefreshGrantCallsStillProduceExactlyOneWinner(t *testing.T) {
 func TestRefreshRefusesARevokedFamily(t *testing.T) {
 	h := newHarness(t)
 	first := h.firstTokens(t)
-	stored, err := h.store.RefreshToken(context.Background(), first.RefreshToken.Lookup())
+	stored, err := h.store.RefreshToken(t.Context(), first.RefreshToken.Lookup())
 	if err != nil {
 		t.Fatalf("reading the refresh token: %v", err)
 	}
-	if err := h.store.RevokeFamily(context.Background(), stored.Family, RevokeReasonClient); err != nil {
+	if err := h.store.RevokeFamily(t.Context(), stored.Family, RevokeReasonClient); err != nil {
 		t.Fatalf("RevokeFamily: %v", err)
 	}
 

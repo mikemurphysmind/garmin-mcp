@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -99,10 +100,7 @@ func registerGetGoals(registry *mcpserver.Registry, svc *service) error {
 	handler := func(ctx context.Context, _ *mcp.CallToolRequest, in getGoalsInput) (
 		*mcp.CallToolResult, GoalList, error,
 	) {
-		goalType := in.GoalType
-		if goalType == "" {
-			goalType = valueActive
-		}
+		goalType := cmp.Or(in.GoalType, valueActive)
 		status, err := api.ParseGoalStatus(goalType)
 		if err != nil {
 			return nil, GoalList{}, fail(err)

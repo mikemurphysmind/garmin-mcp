@@ -73,7 +73,7 @@ func serveStdio(t *testing.T, request string, extraArgs ...string) servedStdio {
 	frameReader, frames := io.Pipe()
 	var stderr syncWriter
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	codes := make(chan int, 1)
