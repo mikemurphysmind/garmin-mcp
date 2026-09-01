@@ -12,6 +12,10 @@ import (
 // Calendar is the workout calendar, which Garmin serves from its GraphQL tier
 // rather than from the REST tier the rest of this package reads.
 //
+// One read here is the exception: the monthly calendar feed in calendarevents.go is
+// REST, because races and events arrive there rather than in the workout-schedule
+// query below.
+//
 // Source: get_scheduled_workouts, _get_garmin_coach_workouts and
 // _is_already_scheduled in garmin_mcp at commit 3610be6, all three of which call
 // python-garminconnect 0.3.10's query_garmin_graphql. See the package comment on

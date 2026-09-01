@@ -36,6 +36,7 @@ var wantReadOnlyToolNames = []string{
 	"get_workout_by_id",
 	"download_workout",
 	tools.ToolGetScheduledWorkouts,
+	tools.ToolGetCalendarEvents,
 	tools.ToolGetTrainingPlanWorkouts,
 	tools.ToolGetGarminCoachWorkouts,
 	tools.ToolGetActivitiesForDate,

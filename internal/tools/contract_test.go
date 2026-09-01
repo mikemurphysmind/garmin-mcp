@@ -72,6 +72,7 @@ func additionsBeyondTheManifest() map[string]string {
 		tools.ToolGetRunningTolerance:            "post-pin upstream addition: running load capacity",
 		tools.ToolGetRunningToleranceTrend:       "post-pin upstream addition: running load capacity trend",
 		tools.ToolGetSleepSummaryRange:           "post-pin upstream addition: multi-night sleep summaries",
+		tools.ToolGetCalendarEvents:              "post-pin upstream addition: calendar races and events",
 	}
 }
 

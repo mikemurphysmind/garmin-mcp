@@ -99,6 +99,12 @@ const (
 	// PathWorkoutSchedule precedes a workout id when scheduling and a scheduled
 	// workout id when unscheduling. Source: garmin_workouts_schedule_url.
 	PathWorkoutSchedule = "/workout-service/schedule"
+	// PathCalendarService precedes the fixed "year" and "month" segments of the
+	// monthly calendar feed, which carries every calendar item — races and events
+	// included — rather than workouts alone. Garmin numbers the month from zero.
+	// Source: garmin_calendar ("/calendar-service") read by get_scheduled_workouts
+	// as f"{garmin_scheduled_workouts_url}/year/{year}/month/{month - 1}".
+	PathCalendarService = "/calendar-service"
 
 	// PathActivityOriginalDownload precedes an activity id in the original
 	// (zipped FIT) download path. Source: garmin_connect_fit_download.
@@ -175,6 +181,7 @@ const (
 	EndpointWorkout                = Endpoint("connectapi.workout.item")
 	EndpointWorkoutDownload        = Endpoint("connectapi.workout.download")
 	EndpointWorkoutSchedule        = Endpoint("connectapi.workout.schedule")
+	EndpointCalendarMonth          = Endpoint("connectapi.calendar.month")
 	// EndpointGraphQL is Garmin's GraphQL gateway. One label covers the whole tier
 	// because one path does: the root field being queried is a separate sanitized
 	// label, GraphQLField, and the Op says which read it serves.
@@ -214,6 +221,7 @@ func coreEndpoints() []Endpoint {
 		EndpointWorkout,
 		EndpointWorkoutDownload,
 		EndpointWorkoutSchedule,
+		EndpointCalendarMonth,
 		EndpointGraphQL,
 	}
 }
@@ -294,6 +302,7 @@ const (
 	OpUnscheduleWorkout         = Op("unschedule_workout")
 	OpDownloadWorkout           = Op("download_workout")
 	OpGetScheduledWorkouts      = Op("get_scheduled_workouts")
+	OpGetCalendarEvents         = Op("get_calendar_events")
 	OpGetTrainingPlanWorkouts   = Op("get_training_plan_workouts")
 )
 
@@ -345,6 +354,7 @@ func coreOps() []Op {
 		OpUnscheduleWorkout,
 		OpDownloadWorkout,
 		OpGetScheduledWorkouts,
+		OpGetCalendarEvents,
 		OpGetTrainingPlanWorkouts,
 	}
 }

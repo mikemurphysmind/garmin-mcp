@@ -150,6 +150,7 @@ func readOnlyRegistrations() []registration {
 		{getWorkoutByIDContract, registerGetWorkoutByID},
 		{downloadWorkoutContract, registerDownloadWorkout},
 		{getScheduledWorkoutsContract, registerGetScheduledWorkouts},
+		{getCalendarEventsContract, registerGetCalendarEvents},
 		{getTrainingPlanWorkoutsContract, registerGetTrainingPlanWorkouts},
 		{getGarminCoachWorkoutsContract, registerGetGarminCoachWorkouts},
 
