@@ -169,6 +169,7 @@ func readOnlyRegistrations() []registration {
 		{getRespirationTrendContract, registerGetRespirationTrend},
 		{getTrainingLoadTrendContract, registerGetTrainingLoadTrend},
 		{getTrainingLoadBalanceContract, registerGetTrainingLoadBalance},
+		{getAcclimationContract, registerGetAcclimation},
 
 		// Nutrition: the reads.
 		{getNutritionDailyFoodLogContract, registerGetNutritionDailyFoodLog},

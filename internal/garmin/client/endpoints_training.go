@@ -191,12 +191,14 @@ const (
 	OpGetHRVTrend                    = Op("get_hrv_trend")
 	OpGetVO2MaxTrend                 = Op("get_vo2max_trend")
 	OpGetRespirationTrend            = Op("get_respiration_trend")
+	OpGetAcclimation                 = Op("get_acclimation")
 )
 
 // trainingOps returns the training operations. A function for the same reason.
 func trainingOps() []Op {
 	return []Op{
 		OpGetProgressSummaryBetweenDates,
+		OpGetAcclimation,
 		OpGetHillScore,
 		OpGetEnduranceScore,
 		OpGetTrainingEffect,

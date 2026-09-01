@@ -23,6 +23,34 @@ the previous baseline. `docs/parity.md` must record the widened reconciliation
 window. Any further baseline change, now that reimplementation work has started,
 needs its own ADR.
 
+## Post-pin upstream additions
+
+Upstream kept moving after the pin. As of 2026-09-01 its `main` is
+[`e8554bc`](https://github.com/Taxuspt/garmin_mcp/commit/e8554bc), 17 commits
+past the pinned commit, and carries 148 tools against the pinned 138.
+
+The pin **stays** at `3610be6`. Moving it would mean re-deriving
+`compat/tools.json` and `compat/resources.json` against a new commit, and those
+manifests were corrected by hand after they were generated: 137 reviewed contract
+snapshots depend on them, and their extractor is not in this repository. See
+`docs/parity.md`.
+
+The behavior upstream added after the pin is therefore implemented **on top of**
+the pin instead:
+
+- a tool upstream added after the pin is registered as an addition beyond the
+  manifest, listed in `docs/parity.md` under "Tools beyond the pinned manifest"
+  with the upstream commit it comes from, entered in the ADR 0006 additions
+  register, and carried by a documented-exclusion entry in
+  `internal/tools/contract_test.go`;
+- a **fix** upstream made to a tool that is in the manifest is applied to that
+  tool and recorded in `docs/parity.md` under "Deliberate deviations", naming the
+  upstream commit, because the pinned snapshot describes the behavior before the
+  fix.
+
+Neither case changes the pin, so no baseline ADR is required. A future decision to
+move the pin does need one, and it needs a reproducible manifest extractor first.
+
 Notes on these pins:
 
 - `python-garminconnect` 0.3.0 removed Garth and introduced native

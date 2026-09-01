@@ -72,6 +72,7 @@ entry in `internal/tools/contract_test.go`.
 | `set_activity_strength_exercise_sets` | write | Replaces the exercise sets of a strength activity, then re-reads and compares them position by position |
 | `create_strength_training_activity` | write | Creates a completed strength activity, replaces its sets, then re-reads the summary and checks the stored activity identifier |
 | `delete_activity` | destructive | Deletes an activity |
+| `get_acclimation` | read-only | Reads the day's heat and altitude acclimation state, with the previous reading beside the current one. Reports available=false where Garmin holds no reading. |
 
 ### Approved brief deviations
 

@@ -17,6 +17,38 @@ type MaxMetricsDay struct {
 	CalendarDate *string      `json:"calendarDate"`
 	Generic      *VO2MaxEntry `json:"generic"`
 	Cycling      *VO2MaxEntry `json:"cycling"`
+	// Acclimation is the heat-and-altitude section of the same document. Garmin
+	// populates it only after outdoor activities in heat or at altitude, so an
+	// account that has none carries no section at all.
+	Acclimation *Acclimation `json:"heatAltitudeAcclimation"`
+}
+
+// Acclimation is one day's heat-and-altitude acclimation state.
+//
+// It is health material: it says where and in what conditions a person trains, so it
+// is never logged. Every field is optional and the numbers decode through the union
+// decoder, because Garmin has been seen sending percentages as strings.
+//
+// Source: the field set upstream's get_acclimation reads (training.py:1529-1546):
+// heatAcclimationPercentage, previousHeatAcclimationPercentage, heatTrend,
+// heatAcclimationDate, previousHeatAcclimationDate, altitudeAcclimation,
+// previousAltitudeAcclimation, altitudeTrend and currentAltitude.
+type Acclimation struct {
+	CalendarDate                *string       `json:"calendarDate"`
+	HeatAcclimationPercentage   client.Number `json:"heatAcclimationPercentage"`
+	PreviousHeatAcclimation     client.Number `json:"previousHeatAcclimationPercentage"`
+	HeatTrend                   client.Text   `json:"heatTrend"`
+	HeatAcclimationDate         *string       `json:"heatAcclimationDate"`
+	PreviousHeatAcclimationDate *string       `json:"previousHeatAcclimationDate"`
+	AltitudeAcclimation         client.Number `json:"altitudeAcclimation"`
+	PreviousAltitudeAcclimation client.Number `json:"previousAltitudeAcclimation"`
+	AltitudeTrend               client.Text   `json:"altitudeTrend"`
+	CurrentAltitude             client.Number `json:"currentAltitude"`
+}
+
+// LogValue reports that a reading exists, never the reading.
+func (a Acclimation) LogValue() slog.Value {
+	return slog.GroupValue(slog.String("model", "acclimation"))
 }
 
 // Day reports the calendar date of the entry, preferring the per-sport section's own

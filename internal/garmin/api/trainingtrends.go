@@ -305,6 +305,29 @@ func (t *TrainingTrends) MaxMetrics(
 	return metrics, nil
 }
 
+// Acclimation reads one day of the max-metrics document for its heat-and-altitude
+// section.
+//
+// Source: get_acclimation, which calls get_max_metrics(date) — the same endpoint the
+// range read asks, with the day as both segments.
+func (t *TrainingTrends) Acclimation(
+	ctx context.Context, session client.Session, date client.Date,
+) (MaxMetrics, error) {
+	path := client.PathMaxMetricsPrefix + "/" + date.String() + "/" + date.String()
+	req := readRequest(client.OpGetAcclimation, client.EndpointMaxMetrics, path, nil)
+	if err := requireDate(req, date); err != nil {
+		return MaxMetrics{}, err
+	}
+
+	var metrics MaxMetrics
+	payload, err := t.req.read(ctx, session, req, &metrics)
+	if err != nil {
+		return MaxMetrics{}, err
+	}
+	metrics.raw = payload
+	return metrics, nil
+}
+
 // ProfileVO2Max reads the account settings document for its VO2 max estimate, which is
 // the VO2 max trend's last fallback.
 func (t *TrainingTrends) ProfileVO2Max(

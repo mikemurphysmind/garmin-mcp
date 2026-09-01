@@ -23,10 +23,10 @@ when the manifest status and the registered surface disagree either way.
 | Manifest tools implemented | **137** of 138 |
 | Manifest tools not implemented | 1 (`set_fit_download_dir`) |
 | Manifest resources implemented | **5** of 5 |
-| Tools registered beyond the manifest | 7, one of them the server's own `server_info` |
-| Tools registered in total | 144 |
+| Tools registered beyond the manifest | 8, one of them the server's own `server_info` |
+| Tools registered in total | 145 |
 
-The 144 registered tools are 100 read-only, 35 write and 9 destructive. Read-only
+The 145 registered tools are 101 read-only, 35 write and 9 destructive. Read-only
 tools always register. Write and destructive tools register too, so the policy
 has a tool to refuse and the start-up tier validation covers them, and they are
 gated at call time by explicit operator enablement locally or its intersection
@@ -493,7 +493,7 @@ See [Deliberate deviations](#deliberate-deviations).
 Every row is registered by `internal/tools/register.go` in tier order. Paths are
 relative to the repository root.
 
-### Read-only tier — 99 tools
+### Read-only tier — 100 tools
 
 | Tool | Go registrar | File |
 | --- | --- | --- |
@@ -596,6 +596,7 @@ relative to the repository root.
 | `get_weigh_ins` | `registerGetWeighIns` | `internal/tools/weighinreads.go` |
 | `get_daily_weigh_ins` | `registerGetDailyWeighIns` | `internal/tools/weighinreads.go` |
 | `get_courses` | `registerGetCourses` | `internal/tools/getcourses.go` |
+| `get_acclimation` † | `registerGetAcclimation` | `internal/tools/get_acclimation.go` |
 
 ### Write tier — 35 tools
 
@@ -659,14 +660,18 @@ relative to the repository root.
 
 ### Tools beyond the pinned manifest
 
-Six tools registered by `internal/tools` have **no record in `compat/tools.json`
-and must not get one**: they are beyond the pinned upstream commit, so adding
-them to the manifest would misreport the pinned surface. Four come from two open
-upstream pull requests, one from the `python-garminconnect` facade, and one from
-the compared legacy MCP surface. They are additions, not parity, and they are
-also entered in the ADR 0006 register. A contract snapshot test cannot compare
-them with the manifest, so each is covered by a
-documented-exclusion entry in `internal/tools/contract_test.go` instead.
+The tools listed here have **no record in `compat/tools.json` and must not get
+one**: they are beyond the pinned upstream commit, so adding them to the manifest
+would misreport the pinned surface. They come from three places — two open
+upstream pull requests, the `python-garminconnect` facade or the compared legacy
+MCP surface, and commits upstream landed on `main` after the pin. They are
+additions, not parity, and they are also entered in the ADR 0006 register. A
+contract snapshot test cannot compare them with the manifest, so each is covered
+by a documented-exclusion entry in `internal/tools/contract_test.go` instead.
+
+The post-pin additions are listed with the upstream commit they come from, and
+`docs/upstream-pins.md` records why they are implemented on top of the pin rather
+than by moving it.
 
 | Tool | Tier | Beyond the pinned commit, from | What it does |
 | --- | --- | --- | --- |
@@ -676,6 +681,7 @@ documented-exclusion entry in `internal/tools/contract_test.go` instead.
 | `set_activity_strength_exercise_sets` | write | [Taxuspt/garmin_mcp#208](https://github.com/Taxuspt/garmin_mcp/pull/208) | Replaces the exercise sets of a strength activity, then re-reads and compares them position by position. |
 | `create_strength_training_activity` | write | [Taxuspt/garmin_mcp#208](https://github.com/Taxuspt/garmin_mcp/pull/208) | Creates a completed strength activity, replaces its sets, then re-reads the summary and checks the stored activity identifier. |
 | `delete_activity` | destructive | `python-garminconnect` `delete_activity`; no upstream pull request | Deletes an activity. |
+| `get_acclimation` | read-only | upstream [e8554bc](https://github.com/Taxuspt/garmin_mcp/commit/e8554bc) | Reads the day's heat and altitude acclimation state, with the previous reading beside the current one. Reports available=false where Garmin holds no reading. |
 
 Both pull requests were open against `Taxuspt/garmin_mcp` when this matrix was
 written: #214 "bump garminconnect to 0.3.7 and expose `update_workout` +
