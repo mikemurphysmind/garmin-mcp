@@ -290,12 +290,17 @@ func exercisedWrites() []string {
 		tools.ToolAddBodyComposition,
 		tools.ToolSetBloodPressure,
 		tools.ToolAddHydrationData,
+		tools.ToolDownloadCourseGPX,
 	}
 }
 
 // writesCoveredElsewhere names the write tools this suite deliberately does not
 // drive, with the reason.
 var writesCoveredElsewhere = map[string]string{
+	tools.ToolSetHeartRateZones: "it writes an account-wide zone configuration, which is " +
+		"no object this suite created: the write half writes owned objects only, and a " +
+		"zone profile cannot be created, only overwritten. set_nutrition_daily_settings " +
+		"is the one exception this suite carries, and it needs its own gate to be one",
 	tools.ToolUploadWorkout: "upload_workouts sends the same document to the same endpoint " +
 		"through the same api-layer method, and the batch form additionally proves the " +
 		"per-item reporting the single form has none of",

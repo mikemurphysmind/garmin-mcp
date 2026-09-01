@@ -51,6 +51,9 @@ var coveredElsewhere = map[string]string{
 	mcpserver.ServerInfoToolName: "the server's own tool: it reaches no Garmin endpoint",
 	tools.ToolGetActivityFITData: "exercised by TestToolResultsAgreeWithTheAPILayer, " +
 		"which already downloads the device file once",
+	tools.ToolGetCourseDetails: "exercised by TestLiveCourseLifecycle against the course " +
+		"this suite creates itself: it needs a course identifier, and the read half must " +
+		"not read a course the account already had",
 }
 
 // Argument names, named once so a rename shows up in one place.
@@ -115,6 +118,12 @@ func accountCalls(now time.Time) []sweepCall {
 		{tools.ToolGetTrainingPlanWorkouts, reference},
 		{tools.ToolGetGarminCoachWorkouts, reference},
 		{tools.ToolGetPowerDurationCurve, map[string]any{argCount: curveActivities}},
+		{tools.ToolGetHeartRateZones, nil},
+		{tools.ToolGetCalendarEvents, window},
+		{tools.ToolGetSleepSummaryRange, window},
+		{tools.ToolGetAcclimation, map[string]any{argDate: day}},
+		{tools.ToolGetRunningTolerance, map[string]any{argDate: day}},
+		{tools.ToolGetRunningToleranceTrend, window},
 	}
 }
 

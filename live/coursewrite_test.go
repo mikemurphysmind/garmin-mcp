@@ -55,8 +55,66 @@ func TestLiveCourseLifecycle(t *testing.T) {
 			tools.ToolUploadCourse, tools.ToolGetCourses)
 	}
 
+	w.assertCourseDetailsMatchTheUpload(t, id, name)
+	w.assertCourseRendersAsGPX(t, id)
+
 	w.deleteCourseViaTool(t, id)
 }
+
+// assertCourseDetailsMatchTheUpload drives get_course_details against the course this
+// suite created and compares it with what the upload sent.
+//
+// It runs here rather than in the read-only sweep because the tool needs a course
+// identifier, and the read half must not read a course the account already had: a
+// pre-existing course is somebody's real route.
+func (w *writeEnv) assertCourseDetailsMatchTheUpload(t *testing.T, id int64, name string) {
+	t.Helper()
+
+	detail := w.call(t, tools.ToolGetCourseDetails, map[string]any{argCourseID: id})
+	if got := identifier(t, detail, tools.ToolGetCourseDetails, argCourseID); got != id {
+		t.Errorf("%s reported course %d, want the created %d",
+			tools.ToolGetCourseDetails, got, id)
+	}
+	assertSuiteValue(t, tools.ToolGetCourseDetails, keyName, name, detail)
+
+	// The uploaded GPX carries three track points, so the stored course must hold at
+	// least that many: Garmin may add its own, and never fewer.
+	points, ok := detail["geo_points_count"].(float64)
+	if !ok {
+		t.Fatalf("%s reported no geo_points_count", tools.ToolGetCourseDetails)
+	}
+	if int(points) < sampleCourseTrackPoints {
+		t.Errorf("%s reported %d route points, want at least the %d the upload sent",
+			tools.ToolGetCourseDetails, int(points), sampleCourseTrackPoints)
+	}
+}
+
+// assertCourseRendersAsGPX drives download_course_gpx against the created course and
+// checks the document it returns is a GPX carrying a track.
+//
+// The document is never written anywhere: it is asserted on in memory and dropped,
+// the same way every other payload this suite reads is.
+func (w *writeEnv) assertCourseRendersAsGPX(t *testing.T, id int64) {
+	t.Helper()
+
+	result := w.call(t, tools.ToolDownloadCourseGPX, map[string]any{argCourseID: id})
+	if got := identifier(t, result, tools.ToolDownloadCourseGPX, "id"); got != id {
+		t.Errorf("%s reported course %d, want the created %d",
+			tools.ToolDownloadCourseGPX, got, id)
+	}
+	if got, _ := result["media_type"].(string); got != "application/gpx+xml" {
+		t.Errorf("%s reported media type %q, want the GPX type",
+			tools.ToolDownloadCourseGPX, got)
+	}
+	size, ok := result["bytes"].(float64)
+	if !ok || size <= 0 {
+		t.Errorf("%s reported %v bytes, want a rendered document",
+			tools.ToolDownloadCourseGPX, result["bytes"])
+	}
+}
+
+// sampleCourseTrackPoints is how many track points sampleCourseGPX carries.
+const sampleCourseTrackPoints = 3
 
 // argGPXContent and argCourseName are upload_course's own wire argument names
 // (internal/tools/coursesupload.go's unexported argGPXContent and argCourseName),

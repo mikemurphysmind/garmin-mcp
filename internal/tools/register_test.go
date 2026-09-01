@@ -126,12 +126,14 @@ var wantReadOnlyToolNames = []string{
 	tools.ToolGetWeighIns,
 	tools.ToolGetDailyWeighIns,
 	tools.ToolGetCourses,
+	tools.ToolGetCourseDetails,
 }
 
 // wantWriteToolNames is the write tier. Every one needs operator enablement; a
 // remote caller additionally needs the write scope.
 var wantWriteToolNames = []string{
 	tools.ToolUploadCourse,
+	tools.ToolDownloadCourseGPX,
 	tools.ToolAddBodyComposition,
 	tools.ToolSetBloodPressure,
 	tools.ToolAddHydrationData,

@@ -13,6 +13,8 @@ import (
 // Result keys that repeat across the shapes below.
 const (
 	keyCount         = "count"
+	keyZones         = "zones"
+	keyEvents        = "events"
 	keyTruncated     = "truncated"
 	keyHasData       = "has_data"
 	keyActivities    = "activities"
@@ -75,8 +77,12 @@ func accountShapes() map[string][]string {
 		tools.ToolGetExerciseTypes:     {"categories", keyCount, "source", "exercise_count"},
 		tools.ToolGetWorkouts:          {keyWorkouts, keyCount, keyTruncated},
 		tools.ToolGetCourses:           {"courses", keyCount, keyTruncated},
-		tools.ToolGetWorkoutByID:       {argWorkoutID},
-		tools.ToolDownloadWorkout:      {"id", "format", "media_type", "bytes", "uri"},
+		tools.ToolGetHeartRateZones:    {keyZones, keyCount},
+		tools.ToolGetCalendarEvents: {
+			keyEvents, keyCount, keyTruncated, argStartDate, argEndDate,
+		},
+		tools.ToolGetWorkoutByID:  {argWorkoutID},
+		tools.ToolDownloadWorkout: {"id", "format", "media_type", "bytes", "uri"},
 		tools.ToolGetTrainingPlanWorkouts: {
 			argDate, "plans", keyWorkouts, keyCount, keyTruncated,
 		},
@@ -103,8 +109,8 @@ func activityShapes() map[string][]string {
 		tools.ToolGetActivityTypedSplits:    {argActivityID, "splits", keyCount, keyTruncated},
 		tools.ToolGetActivitySplits:         {argActivityID, "splits", keyCount, keyTruncated},
 		tools.ToolGetActivitySplitSummaries: {argActivityID, "summaries", keyCount, keyTruncated},
-		tools.ToolGetActivityHRInZones:      {argActivityID, "zones", keyCount},
-		tools.ToolGetActivityPowerInZones:   {argActivityID, "zones", keyCount},
+		tools.ToolGetActivityHRInZones:      {argActivityID, keyZones, keyCount},
+		tools.ToolGetActivityPowerInZones:   {argActivityID, keyZones, keyCount},
 		tools.ToolGetActivityWeather:        {argActivityID, "temperature_unit"},
 		tools.ToolGetActivityExerciseSets:   {argActivityID, keySets, keyCount, keyTruncated},
 		tools.ToolGetActivity: {
@@ -128,7 +134,10 @@ func healthShapes() map[string][]string {
 		tools.ToolGetRestingHeartRateDay:      {argDate, keyHasData},
 		tools.ToolGetRespirationSummary:       {argDate, keyHasData},
 		tools.ToolGetSleepSummary:             {argDate, keyHasData},
-		tools.ToolGetHydrationData:            {argDate, keyHasData},
+		tools.ToolGetSleepSummaryRange: {
+			argStartDate, argEndDate, "nights_requested", "nights_returned", "nights",
+		},
+		tools.ToolGetHydrationData: {argDate, keyHasData},
 		tools.ToolGetAllDayStress: {
 			argDate, keyHasData, keySampleCount, "usable_sample_count",
 		},
@@ -142,10 +151,10 @@ func healthShapes() map[string][]string {
 			argDate, keyHasData, "hourly_averages", "hourly_average_count", keyTruncated,
 		},
 		tools.ToolGetBodyBatteryEvents: {
-			argDate, keyCount, keyTruncated, keyDroppedFields, "events",
+			argDate, keyCount, keyTruncated, keyDroppedFields, keyEvents,
 		},
 		tools.ToolGetAllDayEvents: {
-			argDate, keyCount, keyTruncated, keyDroppedFields, "events",
+			argDate, keyCount, keyTruncated, keyDroppedFields, keyEvents,
 		},
 		tools.ToolGetLifestyleLoggingData: {
 			argDate, keyHasData, "document_json", "document_bytes", keyDroppedFields,

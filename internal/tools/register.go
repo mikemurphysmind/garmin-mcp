@@ -213,6 +213,7 @@ func readOnlyRegistrations() []registration {
 
 		// Courses.
 		{getCoursesContract, registerGetCourses},
+		{getCourseDetailsContract, registerGetCourseDetails},
 	}
 }
 
@@ -244,6 +245,7 @@ func writeRegistrations() []registration {
 
 		// Courses and the data-management writes.
 		{uploadCourseContract, registerUploadCourse},
+		{downloadCourseGPXContract, registerDownloadCourseGPX},
 		{addBodyCompositionContract, registerAddBodyComposition},
 		{setBloodPressureContract, registerSetBloodPressure},
 		{addHydrationDataContract, registerAddHydrationData},

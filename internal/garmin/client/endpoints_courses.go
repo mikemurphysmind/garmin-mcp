@@ -24,6 +24,7 @@ const (
 	EndpointCourseImport = Endpoint("connectapi.course.import")
 	EndpointCourseCreate = Endpoint("connectapi.course.create")
 	EndpointCourseDelete = Endpoint("connectapi.course.delete")
+	EndpointCourseDetail = Endpoint("connectapi.course.detail")
 )
 
 // courseEndpoints returns the course-management labels. A function, not a
@@ -34,6 +35,7 @@ func courseEndpoints() []Endpoint {
 		EndpointCourseImport,
 		EndpointCourseCreate,
 		EndpointCourseDelete,
+		EndpointCourseDetail,
 	}
 }
 
@@ -42,6 +44,10 @@ const (
 	OpGetCourses   = Op("get_courses")
 	OpUploadCourse = Op("upload_course")
 	OpDeleteCourse = Op("delete_course")
+	// The two per-course reads. Both GET the same document; the labels differ so a
+	// log line names which tool asked. Source: courses.py:182 and :224.
+	OpGetCourseDetails  = Op("get_course_details")
+	OpDownloadCourseGPX = Op("download_course_gpx")
 )
 
 // courseOps returns the course-management operations. A function for the
@@ -51,5 +57,7 @@ func courseOps() []Op {
 		OpGetCourses,
 		OpUploadCourse,
 		OpDeleteCourse,
+		OpGetCourseDetails,
+		OpDownloadCourseGPX,
 	}
 }

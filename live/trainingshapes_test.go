@@ -39,6 +39,11 @@ func trainingShapes() map[string][]string {
 		tools.ToolGetVO2MaxTrend:         append([]string{"data_points"}, trend...),
 		tools.ToolGetRespirationTrend:    trend,
 		tools.ToolGetTrainingLoadTrend:   trend,
+		tools.ToolGetAcclimation:         {argDate, "available"},
+		tools.ToolGetRunningTolerance:    {argDate, "supported"},
+		tools.ToolGetRunningToleranceTrend: append(
+			[]string{"aggregation", "data_points", "supported", keyTrend}, window...,
+		),
 		tools.ToolGetProgressSummaryBetweenDates: append(
 			[]string{argMetric, keyHasData, "stats_by_activity_type", keyTruncated}, window...,
 		),

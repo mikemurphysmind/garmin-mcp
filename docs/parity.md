@@ -23,10 +23,10 @@ when the manifest status and the registered surface disagree either way.
 | Manifest tools implemented | **137** of 138 |
 | Manifest tools not implemented | 1 (`set_fit_download_dir`) |
 | Manifest resources implemented | **5** of 5 |
-| Tools registered beyond the manifest | 14, one of them the server's own `server_info` |
-| Tools registered in total | 151 |
+| Tools registered beyond the manifest | 16, one of them the server's own `server_info` |
+| Tools registered in total | 153 |
 
-The 151 registered tools are 106 read-only, 36 write and 9 destructive. Read-only
+The 153 registered tools are 107 read-only, 37 write and 9 destructive. Read-only
 tools always register. Write and destructive tools register too, so the policy
 has a tool to refuse and the start-up tier validation covers them, and they are
 gated at call time by explicit operator enablement locally or its intersection
@@ -493,7 +493,7 @@ See [Deliberate deviations](#deliberate-deviations).
 Every row is registered by `internal/tools/register.go` in tier order. Paths are
 relative to the repository root.
 
-### Read-only tier — 105 tools
+### Read-only tier — 106 tools
 
 | Tool | Go registrar | File |
 | --- | --- | --- |
@@ -602,8 +602,9 @@ relative to the repository root.
 | `get_sleep_summary_range` † | `registerGetSleepSummaryRange` | `internal/tools/get_sleep_summary.go` |
 | `get_calendar_events` † | `registerGetCalendarEvents` | `internal/tools/get_calendar_events.go` |
 | `get_heart_rate_zones` † | `registerGetHeartRateZones` | `internal/tools/heartratezones.go` |
+| `get_course_details` † | `registerGetCourseDetails` | `internal/tools/coursedetail.go` |
 
-### Write tier — 36 tools
+### Write tier — 37 tools
 
 | Tool | Go registrar | File |
 | --- | --- | --- |
@@ -643,6 +644,7 @@ relative to the repository root.
 | `create_strength_workout` | `registerCreateStrengthWorkout` | `internal/tools/builders_strength.go` |
 | `download_activity_file` | `registerDownloadActivityFile` | `internal/tools/downloads.go` |
 | `set_heart_rate_zones` † | `registerSetHeartRateZones` | `internal/tools/heartratezones.go` |
+| `download_course_gpx` † | `registerDownloadCourseGPX` | `internal/tools/coursedetail.go` |
 
 ### Destructive tier — 9 tools
 
@@ -694,6 +696,8 @@ than by moving it.
 | `get_calendar_events` | read-only | upstream [504e6c4](https://github.com/Taxuspt/garmin_mcp/commit/504e6c4) | Reads the races and events on the Garmin Connect calendar between two dates, from the REST month feed no other tool reads. Bounded, de-duplicated at the month seams, ordered by date then title. |
 | `get_heart_rate_zones` | read-only | upstream [fdb5a9e](https://github.com/Taxuspt/garmin_mcp/commit/fdb5a9e) | Reads the account's saved per-sport heart-rate zone profiles: every profile, or the one sport named. The key generic is accepted for Garmin's DEFAULT. |
 | `set_heart_rate_zones` | write | upstream [fdb5a9e](https://github.com/Taxuspt/garmin_mcp/commit/fdb5a9e) | Writes one sport's zone profile as a read-modify-write: an omitted value is preserved, a sport with no profile inherits DEFAULT's, the merged profile is validated, and the saved profile is re-read and returned. Custom floors are sent as HR_MAX, which is the only shape Garmin stores. |
+| `get_course_details` | read-only | upstream [3c44049](https://github.com/Taxuspt/garmin_mcp/commit/3c44049) | Reads one course: its totals, activity type and every custom waypoint with its coordinate. The recorded route is reported as a count rather than returned; download_course_gpx returns it as a document. |
+| `download_course_gpx` | write | upstream [3c44049](https://github.com/Taxuspt/garmin_mcp/commit/3c44049) | Renders one course as a GPX 1.1 document and returns it as a bounded embedded MCP resource. Every text value is XML-escaped, and no filesystem path is accepted or written, unlike upstream. |
 
 Both pull requests were open against `Taxuspt/garmin_mcp` when this matrix was
 written: #214 "bump garminconnect to 0.3.7 and expose `update_workout` +
@@ -1250,6 +1254,28 @@ This matches upstream `_build_vo2_trend_series` and the reordered candidate path
 of `_extract_vo2_measurements` as of upstream's fix for issue #261, which lands
 after the pinned commit. Before it, both projects collapsed the series to the
 days the value changed and reported the rounded figure.
+
+### The two course reads return coordinates, and `download_course_gpx` returns content
+
+`get_course_details` returns each custom waypoint with its latitude and longitude,
+and `download_course_gpx` returns the whole recorded route. Both are precise
+location data, which every other tool in this server is forbidden from returning —
+the live read-only sweep fails on a `lat` or `longitude` key in any result it
+drives. That rule stands for the rest of the surface; these two tools are its one
+exception, because a course *is* a route and a tool that returned one without
+coordinates would return nothing useful. The exception is bounded:
+
+- the sweep does not drive `get_course_details`. It is exercised in
+  `TestLiveCourseLifecycle`, against a course the suite created itself, so no
+  pre-existing route of the account is ever read by the live suite;
+- neither result is ever logged. Both log values report counts alone;
+- `download_course_gpx` writes no filesystem path, unlike upstream, and every text
+  value in the rendered document is escaped through `encoding/xml` — upstream
+  interpolates a course name into the document unescaped. See the ADR 0006
+  register.
+
+`get_course_details` also reports the route as `geo_points_count` rather than
+returning it, so the detail read stays a result and the route stays a document.
 
 ### `get_sleep_summary_range` fails a night it cannot read, where upstream skips it
 
