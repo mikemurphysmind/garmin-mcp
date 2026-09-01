@@ -73,6 +73,8 @@ entry in `internal/tools/contract_test.go`.
 | `create_strength_training_activity` | write | Creates a completed strength activity, replaces its sets, then re-reads the summary and checks the stored activity identifier |
 | `delete_activity` | destructive | Deletes an activity |
 | `get_acclimation` | read-only | Reads the day's heat and altitude acclimation state, with the previous reading beside the current one. Reports available=false where Garmin holds no reading. |
+| `get_running_tolerance` | read-only | Reads Garmin's running load-capacity model for one day: capacity, intensity-adjusted load and distance in kilometres, plus the load-to-distance ratio. Reports supported=false where the device does not report the metric. |
+| `get_running_tolerance_trend` | read-only | Reads the same model over an inclusive window, daily or weekly, ordered oldest first because Garmin does not order the daily aggregation. Bounded at 90 days daily and 366 weekly. |
 
 ### Approved brief deviations
 

@@ -34,6 +34,12 @@ const (
 	// day is the same date twice. Source: garmin_connect_metrics_url, used by
 	// get_max_metrics and get_max_metrics_range.
 	PathMaxMetricsPrefix = "/metrics-service/metrics/maxmet/daily"
+	// PathRunningToleranceStats is the running-tolerance statistics document. It
+	// takes no segment: the window and the aggregation are parameters.
+	// Source: garmin_connect_running_tolerance_url
+	// ("/metrics-service/metrics/runningtolerance/stats"), read by
+	// get_running_tolerance with startDate, endDate and aggregation.
+	PathRunningToleranceStats = "/metrics-service/metrics/runningtolerance/stats"
 
 	// PathHRVPrefix precedes a calendar date in the heart-rate-variability path.
 	// Source: garmin_connect_hrv_url, read by get_hrv_data.
@@ -132,6 +138,7 @@ const (
 	EndpointEnduranceScoreStats            = Endpoint("connectapi.metrics.endurance_score_stats")
 	EndpointTrainingStatus                 = Endpoint("connectapi.metrics.training_status")
 	EndpointMaxMetrics                     = Endpoint("connectapi.metrics.max_metrics")
+	EndpointRunningTolerance               = Endpoint("connectapi.metrics.running_tolerance")
 	EndpointHRV                            = Endpoint("connectapi.hrv.daily")
 	EndpointFitnessAge                     = Endpoint("connectapi.fitnessage.daily")
 	EndpointLatestFunctionalThresholdPower = Endpoint("connectapi.biometric.latest_ftp")
@@ -155,6 +162,7 @@ func trainingEndpoints() []Endpoint {
 		EndpointEnduranceScoreStats,
 		EndpointTrainingStatus,
 		EndpointMaxMetrics,
+		EndpointRunningTolerance,
 		EndpointHRV,
 		EndpointFitnessAge,
 		EndpointLatestFunctionalThresholdPower,
@@ -192,6 +200,8 @@ const (
 	OpGetVO2MaxTrend                 = Op("get_vo2max_trend")
 	OpGetRespirationTrend            = Op("get_respiration_trend")
 	OpGetAcclimation                 = Op("get_acclimation")
+	OpGetRunningTolerance            = Op("get_running_tolerance")
+	OpGetRunningToleranceTrend       = Op("get_running_tolerance_trend")
 )
 
 // trainingOps returns the training operations. A function for the same reason.
@@ -199,6 +209,8 @@ func trainingOps() []Op {
 	return []Op{
 		OpGetProgressSummaryBetweenDates,
 		OpGetAcclimation,
+		OpGetRunningTolerance,
+		OpGetRunningToleranceTrend,
 		OpGetHillScore,
 		OpGetEnduranceScore,
 		OpGetTrainingEffect,

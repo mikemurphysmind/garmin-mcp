@@ -381,6 +381,12 @@ func roundToOneDecimal(value float64) float64 {
 	return math.Round(value*10) / 10
 }
 
+// roundToTwoDecimals matches Python's round(value, 2), which upstream applies to the
+// kilometre figures it derives from Garmin's metres.
+func roundToTwoDecimals(value float64) float64 {
+	return math.Round(value*100) / 100
+}
+
 // stringOrEmpty renders an optional string as "" rather than nil, for a field
 // upstream always includes even when Garmin omits it.
 func stringOrEmpty(value *string) string {

@@ -23,10 +23,10 @@ when the manifest status and the registered surface disagree either way.
 | Manifest tools implemented | **137** of 138 |
 | Manifest tools not implemented | 1 (`set_fit_download_dir`) |
 | Manifest resources implemented | **5** of 5 |
-| Tools registered beyond the manifest | 8, one of them the server's own `server_info` |
-| Tools registered in total | 145 |
+| Tools registered beyond the manifest | 10, one of them the server's own `server_info` |
+| Tools registered in total | 147 |
 
-The 145 registered tools are 101 read-only, 35 write and 9 destructive. Read-only
+The 147 registered tools are 103 read-only, 35 write and 9 destructive. Read-only
 tools always register. Write and destructive tools register too, so the policy
 has a tool to refuse and the start-up tier validation covers them, and they are
 gated at call time by explicit operator enablement locally or its intersection
@@ -493,7 +493,7 @@ See [Deliberate deviations](#deliberate-deviations).
 Every row is registered by `internal/tools/register.go` in tier order. Paths are
 relative to the repository root.
 
-### Read-only tier — 100 tools
+### Read-only tier — 102 tools
 
 | Tool | Go registrar | File |
 | --- | --- | --- |
@@ -597,6 +597,8 @@ relative to the repository root.
 | `get_daily_weigh_ins` | `registerGetDailyWeighIns` | `internal/tools/weighinreads.go` |
 | `get_courses` | `registerGetCourses` | `internal/tools/getcourses.go` |
 | `get_acclimation` † | `registerGetAcclimation` | `internal/tools/get_acclimation.go` |
+| `get_running_tolerance` † | `registerGetRunningTolerance` | `internal/tools/runningtolerance.go` |
+| `get_running_tolerance_trend` † | `registerGetRunningToleranceTrend` | `internal/tools/runningtolerance.go` |
 
 ### Write tier — 35 tools
 
@@ -682,6 +684,8 @@ than by moving it.
 | `create_strength_training_activity` | write | [Taxuspt/garmin_mcp#208](https://github.com/Taxuspt/garmin_mcp/pull/208) | Creates a completed strength activity, replaces its sets, then re-reads the summary and checks the stored activity identifier. |
 | `delete_activity` | destructive | `python-garminconnect` `delete_activity`; no upstream pull request | Deletes an activity. |
 | `get_acclimation` | read-only | upstream [e8554bc](https://github.com/Taxuspt/garmin_mcp/commit/e8554bc) | Reads the day's heat and altitude acclimation state, with the previous reading beside the current one. Reports available=false where Garmin holds no reading. |
+| `get_running_tolerance` | read-only | upstream [d6c9b40](https://github.com/Taxuspt/garmin_mcp/commit/d6c9b40) | Reads Garmin's running load-capacity model for one day: capacity, intensity-adjusted load and distance in kilometres, plus the load-to-distance ratio. Reports supported=false where the device does not report the metric. |
+| `get_running_tolerance_trend` | read-only | upstream [d6c9b40](https://github.com/Taxuspt/garmin_mcp/commit/d6c9b40) | Reads the same model over an inclusive window, daily or weekly, ordered oldest first because Garmin does not order the daily aggregation. Bounded at 90 days daily and 366 weekly. |
 
 Both pull requests were open against `Taxuspt/garmin_mcp` when this matrix was
 written: #214 "bump garminconnect to 0.3.7 and expose `update_workout` +

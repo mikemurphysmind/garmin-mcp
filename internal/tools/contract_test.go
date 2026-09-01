@@ -69,6 +69,8 @@ func additionsBeyondTheManifest() map[string]string {
 		tools.ToolCreateStrengthTrainingActivity: "unmerged upstream proposal: verified strength create",
 		"delete_activity":                        "python-garminconnect delete_activity; absent from the pinned surface",
 		tools.ToolGetAcclimation:                 "post-pin upstream addition: heat and altitude acclimation",
+		tools.ToolGetRunningTolerance:            "post-pin upstream addition: running load capacity",
+		tools.ToolGetRunningToleranceTrend:       "post-pin upstream addition: running load capacity trend",
 	}
 }
 

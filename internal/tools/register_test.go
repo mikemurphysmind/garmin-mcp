@@ -91,6 +91,8 @@ var wantReadOnlyToolNames = []string{
 	tools.ToolGetTrainingLoadTrend,
 	tools.ToolGetTrainingLoadBalance,
 	tools.ToolGetAcclimation,
+	tools.ToolGetRunningTolerance,
+	tools.ToolGetRunningToleranceTrend,
 
 	// Nutrition reads and the challenge surface.
 	tools.ToolGetNutritionDailyFoodLog,
