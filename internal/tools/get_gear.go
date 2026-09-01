@@ -53,6 +53,7 @@ type GearStatsSummary struct {
 type GearEntry struct {
 	UUID          *string  `json:"uuid,omitempty" jsonschema:"the gear identifier the write tools take"`
 	Name          *string  `json:"name,omitempty" jsonschema:"the name the account gave the gear"`
+	Notes         *string  `json:"notes,omitempty" jsonschema:"the free-text note on the gear, when it has one"`
 	FullName      *string  `json:"full_name,omitempty" jsonschema:"the make and model typed in"`
 	Type          *string  `json:"type,omitempty" jsonschema:"the gear type, for example Shoes"`
 	Status        string   `json:"status" jsonschema:"the gear status, lowercased, for example active"`
@@ -123,8 +124,9 @@ func getGearContract() Contract {
 			Title: "Get gear",
 			Description: "read every piece of gear registered to the account: name, " +
 				"type, service dates, the configured retirement distance, the " +
-				"activity types it defaults to, and — unless include_stats is false " +
-				"— its usage statistics. The account's own profile identifier is " +
+				"activity types it defaults to, its free-text note when it has one, " +
+				"and — unless include_stats is false — its usage statistics. The " +
+				"account's own profile identifier is " +
 				"looked up automatically; no argument names it",
 			Tier:        policy.TierReadOnly,
 			Category:    categoryDevice,
@@ -158,7 +160,8 @@ func registerGetGear(registry *mcpserver.Registry, svc *service) error {
 		}
 
 		includeStats := in.IncludeStats == nil || *in.IncludeStats
-		result, err := svc.newGearList(ctx, session, items, defaults, includeStats)
+		result, err := svc.newGearList(ctx, session, items, defaults,
+			svc.gearNotes(ctx, session), includeStats)
 		if err != nil {
 			return nil, GearList{}, err
 		}
@@ -180,7 +183,8 @@ func registerGetGear(registry *mcpserver.Registry, svc *service) error {
 // without paying for statistics can pass include_stats=false.
 func (s *service) newGearList(
 	ctx context.Context, session client.Session,
-	items []api.GearItem, defaults []api.GearDefault, includeStats bool,
+	items []api.GearItem, defaults []api.GearDefault, notes map[string]string,
+	includeStats bool,
 ) (GearList, error) {
 	truncated := false
 	if len(items) > defaultMaxGearItems {
@@ -197,7 +201,7 @@ func (s *service) newGearList(
 	nameByUUID := make(map[string]string, len(items))
 	active, retired := 0, 0
 	for _, item := range items {
-		entry, err := s.newGearEntry(ctx, session, item, defaultsByUUID, includeStats)
+		entry, err := s.newGearEntry(ctx, session, item, defaultsByUUID, notes, includeStats)
 		if err != nil {
 			return GearList{}, err
 		}
@@ -231,7 +235,7 @@ const gearStatusRetired = "retired"
 // includeStats is set, its usage statistics.
 func (s *service) newGearEntry(
 	ctx context.Context, session client.Session, item api.GearItem,
-	defaultsByUUID map[string][]int64, includeStats bool,
+	defaultsByUUID map[string][]int64, notes map[string]string, includeStats bool,
 ) (GearEntry, error) {
 	entry := GearEntry{
 		UUID:      item.UUID,
@@ -250,6 +254,9 @@ func (s *service) newGearEntry(
 		if activityTypes, ok := defaultsByUUID[*item.UUID]; ok {
 			entry.IsDefaultForActivityTypes = activityTypes
 		}
+		if note, ok := notes[api.NormalizeGearUUID(*item.UUID)]; ok {
+			entry.Notes = &note
+		}
 	}
 	if !includeStats || item.UUID == nil {
 		return entry, nil
@@ -265,6 +272,21 @@ func (s *service) newGearEntry(
 	}
 	entry.Stats = newGearStatsSummary(stats)
 	return entry, nil
+}
+
+// gearNotes reads the account's gear notes, keyed by normalized gear identifier.
+//
+// A failure is reported as no notes rather than as a failed call. Notes live on a
+// separate v2 read that the rest of the inventory does not depend on, so refusing the
+// whole call because that one read failed would lose an inventory Garmin already
+// answered with. Upstream does the same, and logs it at debug
+// (gear_management.py's GEAR_V2_LIST_ENDPOINT merge).
+func (s *service) gearNotes(ctx context.Context, session client.Session) map[string]string {
+	notes, err := s.gear.Notes(ctx, session)
+	if err != nil {
+		return nil
+	}
+	return notes
 }
 
 // newGearStatsSummary maps one gear item's statistics, matching upstream's own

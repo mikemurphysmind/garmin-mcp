@@ -35,6 +35,11 @@ const (
 	// Source: f"{garmin_connect_gear_baseurl}/user/{userProfileNumber}/activityTypes"
 	// in get_gear_defaults.
 	PathGearUserDefaultsPrefix = "/gear-service/gear/user"
+	// PathGearV2List is the v2 gear list, the only read that carries a gear item's
+	// free-text notes. It takes no segment and no parameter: it answers for the
+	// signed-in account. Source: GEAR_V2_LIST_ENDPOINT in gear_management.py
+	// ("/gear-service/gear/v2/list").
+	PathGearV2List = "/gear-service/gear/v2/list"
 )
 
 // Query parameter names and fixed wire values the device-and-gear reads add.
@@ -63,6 +68,7 @@ const (
 	EndpointDeviceSolar           = Endpoint("connectapi.device.solar")
 	EndpointGearDefaults          = Endpoint("connectapi.gear.defaults")
 	EndpointGearStats             = Endpoint("connectapi.gear.stats")
+	EndpointGearV2List            = Endpoint("connectapi.gear.v2_list")
 )
 
 // devicesEndpoints returns the device-and-gear labels declared here.
@@ -78,6 +84,7 @@ func devicesEndpoints() []Endpoint {
 		EndpointDeviceSolar,
 		EndpointGearDefaults,
 		EndpointGearStats,
+		EndpointGearV2List,
 	}
 }
 

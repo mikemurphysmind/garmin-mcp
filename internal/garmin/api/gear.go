@@ -203,6 +203,51 @@ func (g *Gear) List(
 	return items.Items(), nil
 }
 
+// GearNote is one gear item's free-text note, as the v2 gear list reports it.
+//
+// It is the only read that carries a note. Its UUIDs have been seen hyphenated and
+// upper-cased where the legacy list sends them lowercased, so a note is keyed by a
+// normalized identifier rather than by the string Garmin sent.
+//
+// Source: upstream gear_management.py's GEAR_V2_LIST_ENDPOINT merge, pull request
+// #250: gear_v2.get("uuid") and gear_v2.get("notes").
+type GearNote struct {
+	UUID  *string `json:"uuid"`
+	Notes *string `json:"notes"`
+}
+
+// NormalizeGearUUID folds a gear identifier to its hyphen-free lowercase form, which
+// is the form the two gear reads agree on. Source: _normalize_gear_uuid.
+func NormalizeGearUUID(value string) string {
+	return strings.ToLower(strings.ReplaceAll(value, "-", ""))
+}
+
+// Notes reads the account's gear notes, keyed by normalized gear identifier.
+//
+// An item Garmin holds no note for carries no entry, so an absent note and an empty
+// one are the same thing to a caller: neither reports a note.
+func (g *Gear) Notes(
+	ctx context.Context, session client.Session,
+) (map[string]string, error) {
+	req := readRequest(client.OpGetGear, client.EndpointGearV2List, client.PathGearV2List, nil)
+
+	var items client.List[GearNote]
+	if _, err := g.req.read(ctx, session, req, &items); err != nil {
+		return nil, err
+	}
+
+	notes := make(map[string]string)
+	for _, item := range items.Items() {
+		if item.UUID == nil || item.Notes == nil || *item.Notes == "" {
+			continue
+		}
+		if key := NormalizeGearUUID(*item.UUID); key != "" {
+			notes[key] = *item.Notes
+		}
+	}
+	return notes, nil
+}
+
 // GearDefault is one gear-to-activity-type default association.
 //
 // Source: gear_management.py's get_gear tool (gear_management.py:67-70):

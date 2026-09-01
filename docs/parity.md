@@ -1194,6 +1194,21 @@ This is a bug fixed, not a compatibility break, and it is recorded here rather
 than in the ADR 0006 register for that reason. The endpoint set is unchanged: both
 projects request the same two range paths.
 
+### `get_gear` reports each item's free-text note
+
+Notes live only on Garmin's v2 gear list (`/gear-service/gear/v2/list`), a
+separate read from the legacy inventory the rest of the fields come from. The
+two reads disagree on identifier spelling — the v2 list has been seen sending
+hyphen-free upper-case UUIDs — so a note is merged onto its item by the
+hyphen-free lowercase form of the identifier.
+
+A failed notes read is reported as no notes rather than as a failed call: the
+inventory the legacy read already answered with is returned whole. An item Garmin
+holds no note for, or holds an empty one for, carries no `notes` field.
+
+This matches upstream `gear_management.py` as of pull request #250, which lands
+after the pinned commit.
+
 ### `get_vo2max_trend` returns a dense daily series with carried-forward days
 
 Garmin's max-metrics read records an entry only on a day it recomputed the

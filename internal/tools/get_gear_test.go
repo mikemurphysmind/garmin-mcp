@@ -95,8 +95,9 @@ func TestGetGearReturnsTheCuratedInventoryWithStats(t *testing.T) {
 		t.Error("gear[1].stats is present, want it omitted: its stats read answered 404")
 	}
 
-	if got := len(fake.Requests()); got != 5 {
-		t.Errorf("dispatched %d requests, want 5 (last-used, gear, defaults, and one stats read per item)", got)
+	if got := len(fake.Requests()); got != 6 {
+		t.Errorf("dispatched %d requests, want 6 (last-used, gear, defaults, notes, "+
+			"and one stats read per item)", got)
 	}
 }
 
@@ -182,8 +183,8 @@ func TestGetGearSkipsStatsWhenIncludeStatsIsFalse(t *testing.T) {
 	if _, present := first["stats"]; present {
 		t.Error("gear[0].stats is present, want it omitted when include_stats is false")
 	}
-	if got := len(fake.Requests()); got != 3 {
-		t.Errorf("dispatched %d requests, want 3 (last-used, gear, defaults; no stats)", got)
+	if got := len(fake.Requests()); got != 4 {
+		t.Errorf("dispatched %d requests, want 4 (last-used, gear, defaults, notes; no stats)", got)
 	}
 }
 
@@ -225,5 +226,54 @@ func TestGetGearRefusesARegistryItDoesNotHave(t *testing.T) {
 	err := registerGetGear(nil, svc)
 	if !errors.Is(err, mcpserver.ErrMissingDependency) {
 		t.Errorf("registering on no registry = %v, want ErrMissingDependency", err)
+	}
+}
+
+// gearV2Body is the v2 gear list, the only read that carries a gear item's notes.
+// Its UUIDs are hyphenated and upper-cased on some accounts, so the merge is by a
+// normalized identifier rather than by the string. Source: upstream
+// gear_management.py's GEAR_V2_LIST_ENDPOINT merge (pull request #250).
+const gearV2Body = `[{"uuid":"1F3C9D2A000040008000ABCDEF012345","notes":"winter pair"},` +
+	`{"uuid":"` + testRetiredGearUUID + `","notes":null}]`
+
+// TestGetGearReportsTheNotesFromTheV2Read proves the notes reach the caller, merged
+// onto the legacy inventory by a normalized UUID, and that an item Garmin holds no
+// note for carries none rather than an empty string.
+func TestGetGearReportsTheNotesFromTheV2Read(t *testing.T) {
+	t.Parallel()
+
+	script := gearScript(t, testkit.JSON(http.StatusOK, gearStatsBody)).
+		With(client.PathGearV2List, testkit.JSON(http.StatusOK, gearV2Body))
+	svc, _ := deviceToolsService(t, script)
+	session := deviceToolsSession(t, deviceToolsServer(t, svc))
+	result := deviceToolStructured(t, callDeviceTool(t, session, ToolGetGear, nil))
+
+	items := list(t, result, "gear")
+	shoes := entry(t, items, 0)
+	if got, _ := shoes["notes"].(string); got != "winter pair" {
+		t.Errorf("the shoe's notes = %q, want the v2 read's note", got)
+	}
+	if _, present := entry(t, items, 1)["notes"]; present {
+		t.Error("an item Garmin holds no note for reported one")
+	}
+}
+
+// TestGetGearSurvivesAFailedNotesRead proves the notes read is not load-bearing: the
+// inventory the legacy read already answered with is returned whole, without notes.
+func TestGetGearSurvivesAFailedNotesRead(t *testing.T) {
+	t.Parallel()
+
+	script := gearScript(t, testkit.JSON(http.StatusOK, gearStatsBody)).
+		With(client.PathGearV2List,
+			testkit.JSON(http.StatusInternalServerError, `{"error":"synthetic"}`))
+	svc, _ := deviceToolsService(t, script)
+	session := deviceToolsSession(t, deviceToolsServer(t, svc))
+	result := deviceToolStructured(t, callDeviceTool(t, session, ToolGetGear, nil))
+
+	if got := len(list(t, result, "gear")); got != 2 {
+		t.Fatalf("gear holds %d items, want the two the legacy read answered with", got)
+	}
+	if _, present := entry(t, list(t, result, "gear"), 0)["notes"]; present {
+		t.Error("a failed notes read produced a note")
 	}
 }
