@@ -145,6 +145,7 @@ func readOnlyRegistrations() []registration {
 		{getActivityPowerInZonesContract, registerGetActivityPowerInZones},
 		{getActivityWeatherContract, registerGetActivityWeather},
 		{getActivityFITDataContract, registerGetActivityFITData},
+		{getActivityFITMessagesContract, registerGetActivityFITMessages},
 		{getPowerDurationCurveContract, registerGetPowerDurationCurve},
 		{getExerciseTypesContract, registerGetExerciseTypes},
 		{getWorkoutsContract, registerGetWorkouts},

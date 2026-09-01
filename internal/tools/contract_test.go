@@ -77,6 +77,7 @@ func additionsBeyondTheManifest() map[string]string {
 		tools.ToolSetHeartRateZones:              "post-pin upstream addition: per-sport heart-rate zone write",
 		tools.ToolGetCourseDetails:               "post-pin upstream addition: one course with its waypoints",
 		tools.ToolDownloadCourseGPX:              "post-pin upstream addition: course rendered as GPX",
+		tools.ToolGetActivityFITMessages:         "post-pin upstream addition: generic FIT message inspection",
 	}
 }
 

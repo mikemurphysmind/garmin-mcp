@@ -46,6 +46,7 @@ var wantReadOnlyToolNames = []string{
 	tools.ToolGetActivityGear,
 	tools.ToolGetActivityTypes,
 	tools.ToolGetActivityFITData,
+	tools.ToolGetActivityFITMessages,
 	tools.ToolGetPowerDurationCurve,
 
 	// Health and wellness.

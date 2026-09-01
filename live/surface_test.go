@@ -51,6 +51,8 @@ var coveredElsewhere = map[string]string{
 	mcpserver.ServerInfoToolName: "the server's own tool: it reaches no Garmin endpoint",
 	tools.ToolGetActivityFITData: "exercised by TestToolResultsAgreeWithTheAPILayer, " +
 		"which already downloads the device file once",
+	tools.ToolGetActivityFITMessages: "exercised by TestActivityFITMessagesInspectTheDeviceFile, " +
+		"which downloads the same device file once and pages it",
 	tools.ToolGetCourseDetails: "exercised by TestLiveCourseLifecycle against the course " +
 		"this suite creates itself: it needs a course identifier, and the read half must " +
 		"not read a course the account already had",

@@ -23,10 +23,10 @@ when the manifest status and the registered surface disagree either way.
 | Manifest tools implemented | **137** of 138 |
 | Manifest tools not implemented | 1 (`set_fit_download_dir`) |
 | Manifest resources implemented | **5** of 5 |
-| Tools registered beyond the manifest | 16, one of them the server's own `server_info` |
-| Tools registered in total | 153 |
+| Tools registered beyond the manifest | 17, one of them the server's own `server_info` |
+| Tools registered in total | 154 |
 
-The 153 registered tools are 107 read-only, 37 write and 9 destructive. Read-only
+The 154 registered tools are 108 read-only, 37 write and 9 destructive. Read-only
 tools always register. Write and destructive tools register too, so the policy
 has a tool to refuse and the start-up tier validation covers them, and they are
 gated at call time by explicit operator enablement locally or its intersection
@@ -493,7 +493,7 @@ See [Deliberate deviations](#deliberate-deviations).
 Every row is registered by `internal/tools/register.go` in tier order. Paths are
 relative to the repository root.
 
-### Read-only tier — 106 tools
+### Read-only tier — 107 tools
 
 | Tool | Go registrar | File |
 | --- | --- | --- |
@@ -603,6 +603,7 @@ relative to the repository root.
 | `get_calendar_events` † | `registerGetCalendarEvents` | `internal/tools/get_calendar_events.go` |
 | `get_heart_rate_zones` † | `registerGetHeartRateZones` | `internal/tools/heartratezones.go` |
 | `get_course_details` † | `registerGetCourseDetails` | `internal/tools/coursedetail.go` |
+| `get_activity_fit_messages` † | `registerGetActivityFITMessages` | `internal/tools/get_activity_fit_messages.go` |
 
 ### Write tier — 37 tools
 
@@ -698,6 +699,7 @@ than by moving it.
 | `set_heart_rate_zones` | write | upstream [fdb5a9e](https://github.com/Taxuspt/garmin_mcp/commit/fdb5a9e) | Writes one sport's zone profile as a read-modify-write: an omitted value is preserved, a sport with no profile inherits DEFAULT's, the merged profile is validated, and the saved profile is re-read and returned. Custom floors are sent as HR_MAX, which is the only shape Garmin stores. |
 | `get_course_details` | read-only | upstream [3c44049](https://github.com/Taxuspt/garmin_mcp/commit/3c44049) | Reads one course: its totals, activity type and every custom waypoint with its coordinate. The recorded route is reported as a count rather than returned; download_course_gpx returns it as a document. |
 | `download_course_gpx` | write | upstream [3c44049](https://github.com/Taxuspt/garmin_mcp/commit/3c44049) | Renders one course as a GPX 1.1 document and returns it as a bounded embedded MCP resource. Every text value is XML-escaped, and no filesystem path is accepted or written, unlike upstream. |
+| `get_activity_fit_messages` | read-only | upstream [c79b442](https://github.com/Taxuspt/garmin_mcp/commit/c79b442) | Returns one activity's device FIT file as messages without sport-specific curation: every type with its count, plus a paged window of the selected types with each field's value, unit and base type. Coordinate fields are named and marked suppressed rather than returned. |
 
 Both pull requests were open against `Taxuspt/garmin_mcp` when this matrix was
 written: #214 "bump garminconnect to 0.3.7 and expose `update_workout` +
@@ -1254,6 +1256,28 @@ This matches upstream `_build_vo2_trend_series` and the reordered candidate path
 of `_extract_vo2_measurements` as of upstream's fix for issue #261, which lands
 after the pinned commit. Before it, both projects collapsed the series to the
 days the value changed and reported the rounded figure.
+
+### `get_activity_fit_messages` suppresses coordinates and omits upstream's frequency rule
+
+Two deliberate differences from upstream's generic FIT dump:
+
+- **Coordinates are withheld.** The FIT decoder reads every field of every message,
+  positions included. A position field — the profile spells each one with a `_lat`,
+  `_long` or `_lon` suffix — is reported by name with `"suppressed": true` and no
+  value, so a caller sees that the device recorded one without this server handing
+  over a route. The two course reads are the only place this server returns a
+  coordinate at all.
+- **No high-frequency omission rule.** Upstream inventories the file, then omits any
+  non-`record` type occurring more than 100 times from an unfiltered response. That
+  needs the counts before the page is chosen, which needs the whole message stream
+  in memory; this server decodes in one streaming pass and keeps only the requested
+  page, so the page is bounded by `message_limit` alone. `message_counts` still
+  covers the whole file, and `message_types` still selects, so nothing is hidden —
+  an unfiltered page is simply the first `message_limit` non-record messages in file
+  order rather than a filtered subset.
+
+The per-second `record` stream is excluded by default in both servers, and
+`include_records` adds it back in both.
 
 ### The two course reads return coordinates, and `download_course_gpx` returns content
 

@@ -82,6 +82,7 @@ entry in `internal/tools/contract_test.go`.
 | `set_heart_rate_zones` | write | Writes one sport's zone profile as a read-modify-write: an omitted value is preserved, a sport with no profile inherits DEFAULT's, the merged profile is validated, and the saved profile is re-read and returned. Custom floors are sent as HR_MAX, which is the only shape Garmin stores. |
 | `get_course_details` | read-only | Reads one course: its totals, activity type and every custom waypoint with its coordinate. The recorded route is reported as a count rather than returned; download_course_gpx returns it as a document. |
 | `download_course_gpx` | write | Renders one course as a GPX 1.1 document and returns it as a bounded embedded MCP resource. Every text value is XML-escaped, and no filesystem path is accepted or written, unlike upstream. |
+| `get_activity_fit_messages` | read-only | Returns one activity's device FIT file as messages without sport-specific curation: every type with its count, plus a paged window of the selected types with each field's value, unit and base type. Coordinate fields are named and marked suppressed rather than returned. |
 
 ### Approved brief deviations
 
