@@ -33,7 +33,7 @@ gated at call time by explicit operator enablement locally or its intersection
 with a granted scope remotely.
 
 **Registration is not the same as advertisement.** `tools/list` narrows this
-144-tool registry to what `policy.Decide` would actually allow the calling
+154-tool registry to what `policy.Decide` would actually allow the calling
 session: a stdio session sees enabled tiers, while a remote session sees more
 only once the operator has enabled a higher tier *and* the caller's own token
 carries that tier's scope. The filter runs the identical

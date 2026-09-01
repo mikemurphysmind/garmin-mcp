@@ -19,7 +19,7 @@ Last updated: 2026-08-27.
 | 2 — core auth and storage (M1) | **CLOSED** |
 | 3 — MCP foundation (M1) | **CLOSED** |
 | 4 — remote multi-user (M2) | **CLOSED.** The MCP conformance requirement is **blocked upstream**, with evidence below, not outstanding work |
-| 5 — compatibility breadth (M3) | **DONE** — 137 of the 138 upstream tools are implemented, plus 7 the pinned manifest does not carry, for 144 registered. The one refusal is `set_fit_download_dir` (ADR 0006). All 5 resources are implemented |
+| 5 — compatibility breadth (M3) | **DONE** — 137 of the 138 upstream tools are implemented, plus 17 the pinned manifest does not carry, for 154 registered. The one refusal is `set_fit_download_dir` (ADR 0006). All 5 resources are implemented |
 | 6 — hardening and release | **IN PROGRESS.** The security review ran and its three release blockers plus five more findings are fixed, and `v0.0.1` is published. The findings under "The Phase 6 security review ran" are still open, none blocking |
 
 Phase definitions are in `docs/phases.md`.
@@ -44,16 +44,18 @@ commit subjects, and this table is the durable record.
 
 ## Measured coverage
 
-Statement coverage from `go test -count=1 -cover ./...`, measured on 2026-08-18.
+Statement coverage from `go test -count=1 -cover ./...`. The tree was measured on
+2026-08-18; `internal/garmin/api`, `internal/garmin/client` and `internal/tools` were
+re-measured on 2026-09-01, when the post-pin tools landed.
 
 | Package | Untagged |
 |---------|----------|
 | `internal/cmd` | 82.1% |
 | `internal/config` | 90.8% |
 | `internal/cryptostore` | 87.5% |
-| `internal/garmin/api` | 90.7% |
+| `internal/garmin/api` | 86.3% |
 | `internal/garmin/auth` | 65.9% (88.3% with `-tags=fakegarmin`) |
-| `internal/garmin/client` | 94.3% |
+| `internal/garmin/client` | 94.9% |
 | `internal/garmin/protocol` | 96.7% |
 | `internal/identity` | 97.7% |
 | `internal/loginweb` | 82.6% |
@@ -67,11 +69,79 @@ Statement coverage from `go test -count=1 -cover ./...`, measured on 2026-08-18.
 | `internal/store` | 82.9% |
 | `internal/testkit` | 91.5% |
 | `internal/tokenlink` | 80.0% |
-| `internal/tools` | 85.8% |
+| `internal/tools` | 86.2% |
 | `migrations` | 100.0% |
 
 Every package is at or above the 80% floor `AGENTS.md`'s "Testing" section
 states as universal, enforced by `ci.yaml` in both directions.
+
+## 2026-09-01: reconciled against upstream `main`
+
+Upstream `Taxuspt/garmin_mcp` had moved 17 commits past the pinned commit, to
+[`e8554bc`](https://github.com/Taxuspt/garmin_mcp/commit/e8554bc), and carried 148
+tools against the pinned 138. The whole delta was reviewed commit by commit and
+split into three groups.
+
+**Three behaviour differences in tools this server already had.** Each is fixed and
+recorded in `docs/parity.md`:
+
+1. `get_lactate_threshold` reported Garmin's raw threshold speed under a
+   metres-a-second name. Garmin reports it as seconds a metre — an inverse pace — so
+   both the latest reading and every `speed_history` sample are inverted, and a figure
+   that cannot be inverted is omitted rather than reported as an infinity. Upstream's
+   own fix is `training.py:726` and `:766` (its issue #245).
+2. `get_vo2max_trend` collapsed to the days Garmin recomputed the estimate, which is a
+   fraction of the history an account holds. It now returns one entry a day from the
+   first measured day through the end of the window, marking a carried day
+   `carried_forward`, and prefers `vo2MaxPreciseValue` over the 0.5-rounded
+   `vo2MaxValue` — the figure Garmin Connect's chart and the per-date training status
+   report. Upstream's fix is `_build_vo2_trend_series` (its issue #261).
+3. `get_gear` carried no notes. Notes live only on Garmin's v2 gear list, whose
+   identifiers are spelled differently, so they are merged onto the legacy inventory by
+   the hyphen-free lowercase form of the UUID; a failed notes read reports no notes
+   rather than failing the call.
+
+**Ten tools upstream added after the pin,** all implemented and all registered as
+additions beyond the manifest: `get_acclimation`, `get_running_tolerance`,
+`get_running_tolerance_trend`, `get_sleep_summary_range`, `get_calendar_events`,
+`get_heart_rate_zones`, `set_heart_rate_zones`, `get_course_details`,
+`download_course_gpx` and `get_activity_fit_messages`. The registry is now **154
+tools — 108 read-only, 37 write, 9 destructive**.
+
+**The pin did not move, and that is a decision rather than an omission.**
+`compat/tools.json` and `compat/resources.json` are hand-corrected snapshots of
+`3610be6` that 137 reviewed contract tests validate against, and their extractor is
+not in this repository. Moving the pin means re-deriving both manifests; implementing
+post-pin behaviour on top of the pin costs nothing but a documented-exclusion entry
+per tool. `docs/upstream-pins.md` now carries a "Post-pin upstream additions" section
+stating that rule, and every one of the ten tools appears in `docs/parity.md` under
+"Tools beyond the pinned manifest" with the upstream commit it came from, plus a row
+in the ADR 0006 additions register.
+
+Four upstream fixes needed nothing here, and the reasons are worth recording: the
+strength-workout repeat-group fix (upstream's multi-set bug) was never present,
+because `builders_strength.go` already emits a `RepeatGroupDTO` per exercise; the
+nutrition query-parameter fix does not apply, because this server builds `url.Values`
+and never splices a parameter into a path; the per-call timeout upstream added is the
+`request-timeout` setting this server has had since the request layer existed; and the
+null-section hardening is what tolerant decoding into pointers already does. The two
+Python-server fixes — background login, allowlist validation — have no counterpart.
+
+Three of the new tools required deliberate decisions, each recorded in
+`docs/parity.md`:
+
+- `get_course_details` and `download_course_gpx` return coordinates, which no other
+  tool here does. A course *is* a route, so the alternative was a tool that returns
+  nothing useful. The exception is bounded: neither result is logged, the live
+  read-only sweep does not drive the detail read, and the live suite exercises both
+  against a course it created itself.
+- `download_course_gpx` writes no filesystem path, unlike upstream, and escapes every
+  text value through `encoding/xml` — upstream interpolates an account-supplied course
+  name into the document unescaped. ADR 0006 carries the register row.
+- `get_activity_fit_messages` suppresses coordinate fields by name and does not port
+  upstream's "omit any type occurring more than 100 times" rule, which needs the whole
+  message stream in memory before the page is chosen; this decode is one streaming
+  pass that keeps only the requested page.
 
 ## 2026-08-27: modern Go idioms applied across the tree
 
@@ -877,7 +947,7 @@ tools import neither the store nor crypto packages, tool result types carry no
 token, cookie or header field, and `client.Payload` retains no response headers,
 so a Garmin `Set-Cookie` cannot ride out in a tool result); credentials cannot
 become tool arguments (no login tool exists and
-none of the 144 tools has a credential-shaped field); tenant isolation holds
+none of the 154 tools has a credential-shaped field); tenant isolation holds
 structurally, because every outbound path needs a session that cannot be built
 without a principal, and the only construction site reads the principal from the
 request context; write and destructive gating holds, including on stdio where the
@@ -1407,7 +1477,8 @@ equivalence that was never verified.
 ## Next task
 
 The tool surface is finished: 137 of 138 manifest tools and all 5 resources, with
-the one refusal documented. Phase 5 is closed, and every numbered item below is now
+the one refusal documented, plus the 17 additions beyond the manifest — ten of them
+upstream behaviour that landed after the pin, reconciled on 2026-09-01. Phase 5 is closed, and every numbered item below is now
 closed too — they are kept struck through rather than deleted so the reasoning
 survives.
 
