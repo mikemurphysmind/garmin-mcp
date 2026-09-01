@@ -73,6 +73,8 @@ func additionsBeyondTheManifest() map[string]string {
 		tools.ToolGetRunningToleranceTrend:       "post-pin upstream addition: running load capacity trend",
 		tools.ToolGetSleepSummaryRange:           "post-pin upstream addition: multi-night sleep summaries",
 		tools.ToolGetCalendarEvents:              "post-pin upstream addition: calendar races and events",
+		tools.ToolGetHeartRateZones:              "post-pin upstream addition: per-sport heart-rate zone read",
+		tools.ToolSetHeartRateZones:              "post-pin upstream addition: per-sport heart-rate zone write",
 	}
 }
 

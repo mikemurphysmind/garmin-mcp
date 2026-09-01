@@ -105,6 +105,11 @@ const (
 	// Source: garmin_calendar ("/calendar-service") read by get_scheduled_workouts
 	// as f"{garmin_scheduled_workouts_url}/year/{year}/month/{month - 1}".
 	PathCalendarService = "/calendar-service"
+	// PathHeartRateZones is the account-level heart-rate zone configuration, read
+	// and written whole. Garmin keys the document by sport inside the payload
+	// rather than by a path segment. Source: _HEART_RATE_ZONES_URL in upstream's
+	// user_profile.py ("/biometric-service/heartRateZones").
+	PathHeartRateZones = "/biometric-service/heartRateZones"
 
 	// PathActivityOriginalDownload precedes an activity id in the original
 	// (zipped FIT) download path. Source: garmin_connect_fit_download.
@@ -182,6 +187,7 @@ const (
 	EndpointWorkoutDownload        = Endpoint("connectapi.workout.download")
 	EndpointWorkoutSchedule        = Endpoint("connectapi.workout.schedule")
 	EndpointCalendarMonth          = Endpoint("connectapi.calendar.month")
+	EndpointHeartRateZones         = Endpoint("connectapi.biometric.heart_rate_zones")
 	// EndpointGraphQL is Garmin's GraphQL gateway. One label covers the whole tier
 	// because one path does: the root field being queried is a separate sanitized
 	// label, GraphQLField, and the Op says which read it serves.
@@ -222,6 +228,7 @@ func coreEndpoints() []Endpoint {
 		EndpointWorkoutDownload,
 		EndpointWorkoutSchedule,
 		EndpointCalendarMonth,
+		EndpointHeartRateZones,
 		EndpointGraphQL,
 	}
 }
@@ -303,6 +310,8 @@ const (
 	OpDownloadWorkout           = Op("download_workout")
 	OpGetScheduledWorkouts      = Op("get_scheduled_workouts")
 	OpGetCalendarEvents         = Op("get_calendar_events")
+	OpGetHeartRateZones         = Op("get_heart_rate_zones")
+	OpSetHeartRateZones         = Op("set_heart_rate_zones")
 	OpGetTrainingPlanWorkouts   = Op("get_training_plan_workouts")
 )
 
@@ -355,6 +364,8 @@ func coreOps() []Op {
 		OpDownloadWorkout,
 		OpGetScheduledWorkouts,
 		OpGetCalendarEvents,
+		OpGetHeartRateZones,
+		OpSetHeartRateZones,
 		OpGetTrainingPlanWorkouts,
 	}
 }

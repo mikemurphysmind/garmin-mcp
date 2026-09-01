@@ -137,6 +137,7 @@ func readOnlyRegistrations() []registration {
 		{getActivityTypedSplitsContract, registerGetActivityTypedSplits},
 		{getActivityExerciseSetsContract, registerGetActivityExerciseSets},
 		{getUserProfileSettingsContract, registerGetUserProfileSettings},
+		{getHeartRateZonesContract, registerGetHeartRateZones},
 		{getPersonalRecordContract, registerGetPersonalRecord},
 		{getActivitySplitsContract, registerGetActivitySplits},
 		{getActivitySplitSummariesContract, registerGetActivitySplitSummaries},
@@ -225,6 +226,9 @@ func writeRegistrations() []registration {
 	return []registration{
 		// Training: the domain's only write.
 		{requestReloadContract, registerRequestReload},
+
+		// Profile: the account-level zone write.
+		{setHeartRateZonesContract, registerSetHeartRateZones},
 
 		// Nutrition: the writes.
 		{setNutritionDailySettingsContract, registerSetNutritionDailySettings},

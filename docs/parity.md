@@ -23,10 +23,10 @@ when the manifest status and the registered surface disagree either way.
 | Manifest tools implemented | **137** of 138 |
 | Manifest tools not implemented | 1 (`set_fit_download_dir`) |
 | Manifest resources implemented | **5** of 5 |
-| Tools registered beyond the manifest | 12, one of them the server's own `server_info` |
-| Tools registered in total | 149 |
+| Tools registered beyond the manifest | 14, one of them the server's own `server_info` |
+| Tools registered in total | 151 |
 
-The 149 registered tools are 105 read-only, 35 write and 9 destructive. Read-only
+The 151 registered tools are 106 read-only, 36 write and 9 destructive. Read-only
 tools always register. Write and destructive tools register too, so the policy
 has a tool to refuse and the start-up tier validation covers them, and they are
 gated at call time by explicit operator enablement locally or its intersection
@@ -493,7 +493,7 @@ See [Deliberate deviations](#deliberate-deviations).
 Every row is registered by `internal/tools/register.go` in tier order. Paths are
 relative to the repository root.
 
-### Read-only tier — 104 tools
+### Read-only tier — 105 tools
 
 | Tool | Go registrar | File |
 | --- | --- | --- |
@@ -601,8 +601,9 @@ relative to the repository root.
 | `get_running_tolerance_trend` † | `registerGetRunningToleranceTrend` | `internal/tools/runningtolerance.go` |
 | `get_sleep_summary_range` † | `registerGetSleepSummaryRange` | `internal/tools/get_sleep_summary.go` |
 | `get_calendar_events` † | `registerGetCalendarEvents` | `internal/tools/get_calendar_events.go` |
+| `get_heart_rate_zones` † | `registerGetHeartRateZones` | `internal/tools/heartratezones.go` |
 
-### Write tier — 35 tools
+### Write tier — 36 tools
 
 | Tool | Go registrar | File |
 | --- | --- | --- |
@@ -641,6 +642,7 @@ relative to the repository root.
 | `create_z2_walk_workout` | `registerCreateZ2WalkWorkout` | `internal/tools/builders_run.go` |
 | `create_strength_workout` | `registerCreateStrengthWorkout` | `internal/tools/builders_strength.go` |
 | `download_activity_file` | `registerDownloadActivityFile` | `internal/tools/downloads.go` |
+| `set_heart_rate_zones` † | `registerSetHeartRateZones` | `internal/tools/heartratezones.go` |
 
 ### Destructive tier — 9 tools
 
@@ -690,6 +692,8 @@ than by moving it.
 | `get_running_tolerance_trend` | read-only | upstream [d6c9b40](https://github.com/Taxuspt/garmin_mcp/commit/d6c9b40) | Reads the same model over an inclusive window, daily or weekly, ordered oldest first because Garmin does not order the daily aggregation. Bounded at 90 days daily and 366 weekly. |
 | `get_sleep_summary_range` | read-only | upstream [572fc70](https://github.com/Taxuspt/garmin_mcp/commit/572fc70) | Reads the compact sleep summary for every night of a window, oldest first, through the domain client's bounded per-night fan-out. Bounded at 90 nights. A night that cannot be read fails the call rather than being silently dropped, unlike upstream. |
 | `get_calendar_events` | read-only | upstream [504e6c4](https://github.com/Taxuspt/garmin_mcp/commit/504e6c4) | Reads the races and events on the Garmin Connect calendar between two dates, from the REST month feed no other tool reads. Bounded, de-duplicated at the month seams, ordered by date then title. |
+| `get_heart_rate_zones` | read-only | upstream [fdb5a9e](https://github.com/Taxuspt/garmin_mcp/commit/fdb5a9e) | Reads the account's saved per-sport heart-rate zone profiles: every profile, or the one sport named. The key generic is accepted for Garmin's DEFAULT. |
+| `set_heart_rate_zones` | write | upstream [fdb5a9e](https://github.com/Taxuspt/garmin_mcp/commit/fdb5a9e) | Writes one sport's zone profile as a read-modify-write: an omitted value is preserved, a sport with no profile inherits DEFAULT's, the merged profile is validated, and the saved profile is re-read and returned. Custom floors are sent as HR_MAX, which is the only shape Garmin stores. |
 
 Both pull requests were open against `Taxuspt/garmin_mcp` when this matrix was
 written: #214 "bump garminconnect to 0.3.7 and expose `update_workout` +

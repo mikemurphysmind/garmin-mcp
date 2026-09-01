@@ -77,6 +77,8 @@ entry in `internal/tools/contract_test.go`.
 | `get_running_tolerance_trend` | read-only | Reads the same model over an inclusive window, daily or weekly, ordered oldest first because Garmin does not order the daily aggregation. Bounded at 90 days daily and 366 weekly. |
 | `get_sleep_summary_range` | read-only | Reads the compact sleep summary for every night of a window, oldest first, through the domain client's bounded per-night fan-out. Bounded at 90 nights. A night that cannot be read fails the call rather than being silently dropped, unlike upstream. |
 | `get_calendar_events` | read-only | Reads the races and events on the Garmin Connect calendar between two dates, from the REST month feed no other tool reads. Bounded, de-duplicated at the month seams, ordered by date then title. |
+| `get_heart_rate_zones` | read-only | Reads the account's saved per-sport heart-rate zone profiles: every profile, or the one sport named. The key generic is accepted for Garmin's DEFAULT. |
+| `set_heart_rate_zones` | write | Writes one sport's zone profile as a read-modify-write: an omitted value is preserved, a sport with no profile inherits DEFAULT's, the merged profile is validated, and the saved profile is re-read and returned. Custom floors are sent as HR_MAX, which is the only shape Garmin stores. |
 
 ### Approved brief deviations
 
