@@ -1194,6 +1194,19 @@ This is a bug fixed, not a compatibility break, and it is recorded here rather
 than in the ADR 0006 register for that reason. The endpoint set is unchanged: both
 projects request the same two range paths.
 
+### `get_lactate_threshold` reports the threshold speed in metres a second
+
+Garmin reports a lactate-threshold speed as seconds a metre — an inverse pace —
+so the raw figure is the reciprocal of a speed. Both the latest reading's
+`lactate_threshold_speed_mps` and each `speed_history[].value` are inverted
+before they leave this server, and a figure that cannot be inverted (zero or
+negative) produces no value rather than an infinity. The heart-rate and power
+series are carried in the unit Garmin sends them in.
+
+This matches upstream `training.py:726` and `training.py:766` as of upstream's
+fix for issue #245, which lands after the pinned commit. Before it, both
+projects reported the raw seconds-a-metre figure under a metres-a-second name.
+
 ### Training status codes are rendered as strings, where upstream passes the number through
 
 `get_training_status` reports `training_status` and `fitness_trend` as strings. A

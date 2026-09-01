@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"math"
 	"net/http"
 	"strings"
 	"testing"
@@ -12,9 +13,10 @@ import (
 
 // latestLactateDocument is the two-entry shape Garmin answers the latest read with:
 // one entry carries the speed, the next the heart rate under its historical
-// misspelling. Both carry an account key, which must not reach the result.
+// misspelling. Both carry an account key, which must not reach the result. The speed
+// is in the unit Garmin sends, seconds a metre, so 0.2924 is 3.42 metres a second.
 const latestLactateDocument = `[{"userProfilePK":900001,"calendarDate":"` + scoresEndDate +
-	`","sequence":1,"version":2,"speed":3.42,"heartRate":null},` +
+	`","sequence":1,"version":2,"speed":0.2924,"heartRate":null},` +
 	`{"userProfilePK":900001,"calendarDate":"` + scoresEndDate + `","hearRate":168}]`
 
 const powerToWeightDocument = `[{"sport":"Running","functionalThresholdPower":301,` +
@@ -47,11 +49,11 @@ func powerToWeightPaths() []string {
 }
 
 // scriptLatestLactate scripts both endpoints of the latest read.
-func scriptLatestLactate(latest, power string) testkit.Script {
+func scriptLatestLactate(latest string) testkit.Script {
 	script := testkit.NewScript().With(client.PathLatestLactateThreshold,
 		testkit.JSON(http.StatusOK, latest))
 	for _, path := range powerToWeightPaths() {
-		script = script.With(path, testkit.JSON(http.StatusOK, power))
+		script = script.With(path, testkit.JSON(http.StatusOK, powerToWeightDocument))
 	}
 	return script
 }
@@ -74,14 +76,14 @@ func scriptLactateRange() testkit.Script {
 func TestGetLactateThresholdReturnsTheLatestReading(t *testing.T) {
 	t.Parallel()
 
-	h := newScoresHarness(t, scriptLatestLactate(latestLactateDocument, powerToWeightDocument))
+	h := newScoresHarness(t, scriptLatestLactate(latestLactateDocument))
 
 	result := h.call(t, ToolGetLactateThreshold, nil)
 
 	if got, _ := result["mode"].(string); got != lactateModeLatest {
 		t.Errorf("mode = %q, want %q", got, lactateModeLatest)
 	}
-	if got := number(t, result, "lactate_threshold_speed_mps"); got != 3.42 {
+	if got := number(t, result, "lactate_threshold_speed_mps"); !closeEnough(got, 3.42) {
 		t.Errorf("lactate_threshold_speed_mps = %v, want 3.42", got)
 	}
 	// The heart rate arrives only under Garmin's misspelled key.
@@ -107,7 +109,7 @@ func TestGetLactateThresholdReturnsTheLatestReading(t *testing.T) {
 func TestGetLactateThresholdSendsTheMixedCaseSport(t *testing.T) {
 	t.Parallel()
 
-	h := newScoresHarness(t, scriptLatestLactate(latestLactateDocument, powerToWeightDocument))
+	h := newScoresHarness(t, scriptLatestLactate(latestLactateDocument))
 
 	h.call(t, ToolGetLactateThreshold, nil)
 
@@ -131,7 +133,7 @@ func TestGetLactateThresholdSendsTheMixedCaseSport(t *testing.T) {
 func TestGetLactateThresholdReturnsNoAccountKey(t *testing.T) {
 	t.Parallel()
 
-	h := newScoresHarness(t, scriptLatestLactate(latestLactateDocument, powerToWeightDocument))
+	h := newScoresHarness(t, scriptLatestLactate(latestLactateDocument))
 
 	rendered := h.text(t, ToolGetLactateThreshold, nil)
 	for _, forbidden := range []string{"userProfilePK", "900001"} {
@@ -159,7 +161,7 @@ func TestGetLactateThresholdStatesAnUnavailablePart(t *testing.T) {
 	if complete, _ := result["complete"].(bool); complete {
 		t.Error("complete = true, want false when a part failed")
 	}
-	if got := number(t, result, "lactate_threshold_speed_mps"); got != 3.42 {
+	if got := number(t, result, "lactate_threshold_speed_mps"); !closeEnough(got, 3.42) {
 		t.Errorf("the part that answered was lost: speed = %v", got)
 	}
 	if _, present := result["functional_threshold_power_watts"]; present {
@@ -211,8 +213,14 @@ func TestGetLactateThresholdReturnsTheWindowSeries(t *testing.T) {
 		if len(samples) != 2 {
 			t.Fatalf("%s holds %d samples, want two", key, len(samples))
 		}
-		if got := number(t, entry(t, samples, 1), "value"); got != 3.38 {
-			t.Errorf("%s[1].value = %v, want 3.38 from the string form", key, got)
+		// Only the speed series is restated in metres a second; the other two carry
+		// the figure Garmin sent.
+		want := 3.38
+		if key == "speed_history" {
+			want = 1 / 3.38
+		}
+		if got := number(t, entry(t, samples, 1), "value"); !closeEnough(got, want) {
+			t.Errorf("%s[1].value = %v, want %v from the string form", key, got, want)
 		}
 		if got, _ := entry(t, samples, 0)["date"].(string); got != scoresEndDate {
 			t.Errorf("%s[0].date = %q, want %q", key, got, scoresEndDate)
@@ -430,5 +438,80 @@ func TestLactateThresholdAsksForTheLocalCalendarDay(t *testing.T) {
 	if !strings.HasSuffix(asked, localDay) {
 		t.Errorf("asked for %q, want the account's local day %s rather than the UTC day %s",
 			asked, localDay, utcDay)
+	}
+}
+
+// inversePaceLactateDocument is the latest read with a speed in the unit Garmin
+// actually sends it in: seconds a metre, the inverse of a pace. 0.2924 s/m is
+// 3.42 m/s, which is a plausible running threshold; the raw figure is not.
+//
+// Source: upstream's fix for issue #245, training.py:726 and training.py:766, which
+// inverts the raw value in both response shapes.
+const inversePaceLactateDocument = `[{"userProfilePK":900001,"calendarDate":"` +
+	scoresEndDate + `","speed":0.2924,"hearRate":168}]`
+
+// zeroSpeedLactateDocument is a latest read whose speed is zero, which cannot be
+// inverted.
+const zeroSpeedLactateDocument = `[{"calendarDate":"` + scoresEndDate +
+	`","speed":0,"hearRate":168}]`
+
+// inversePaceRangeDocument is the speed series in the same unit.
+const inversePaceRangeDocument = `[{"from":"` + scoresEndDate + `","value":0.2924,` +
+	`"series":"running"},{"from":"2026-01-30","value":0}]`
+
+// closeEnough reports whether two speeds agree to a millimetre a second.
+func closeEnough(got, want float64) bool { return math.Abs(got-want) < 0.001 }
+
+// TestGetLactateThresholdInvertsTheLatestSpeed proves the latest speed is reported in
+// metres a second rather than in the seconds a metre Garmin sends.
+func TestGetLactateThresholdInvertsTheLatestSpeed(t *testing.T) {
+	t.Parallel()
+
+	h := newScoresHarness(t,
+		scriptLatestLactate(inversePaceLactateDocument))
+
+	result := h.call(t, ToolGetLactateThreshold, nil)
+
+	if got := number(t, result, "lactate_threshold_speed_mps"); !closeEnough(got, 3.42) {
+		t.Errorf("lactate_threshold_speed_mps = %v, want 3.42 metres a second", got)
+	}
+}
+
+// TestGetLactateThresholdOmitsAnUninvertibleSpeed proves a zero speed produces no
+// speed at all rather than an infinity.
+func TestGetLactateThresholdOmitsAnUninvertibleSpeed(t *testing.T) {
+	t.Parallel()
+
+	h := newScoresHarness(t,
+		scriptLatestLactate(zeroSpeedLactateDocument))
+
+	result := h.call(t, ToolGetLactateThreshold, nil)
+
+	if got, present := result["lactate_threshold_speed_mps"]; present {
+		t.Errorf("lactate_threshold_speed_mps = %v, want the field omitted", got)
+	}
+}
+
+// TestGetLactateThresholdInvertsTheSpeedSeriesOnly proves the window's speed series
+// is inverted and the heart-rate and power series are carried as Garmin sent them.
+func TestGetLactateThresholdInvertsTheSpeedSeriesOnly(t *testing.T) {
+	t.Parallel()
+
+	script := scriptLactateRange().With(
+		client.PathLactateThresholdSpeedRangePrefix+"/"+scoresStartDate+"/"+scoresEndDate,
+		testkit.JSON(http.StatusOK, inversePaceRangeDocument))
+	h := newScoresHarness(t, script)
+
+	result := h.call(t, ToolGetLactateThreshold, scoresWindowArgs())
+
+	speed := list(t, result, "speed_history")
+	if got := number(t, entry(t, speed, 0), "value"); !closeEnough(got, 3.42) {
+		t.Errorf("speed_history[0].value = %v, want 3.42 metres a second", got)
+	}
+	if got, present := entry(t, speed, 1)["value"]; present {
+		t.Errorf("speed_history[1].value = %v, want the uninvertible sample's value omitted", got)
+	}
+	if got := number(t, entry(t, list(t, result, "power_history"), 0), "value"); got != 3.41 {
+		t.Errorf("power_history[0].value = %v, want the raw 3.41", got)
 	}
 }

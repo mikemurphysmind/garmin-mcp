@@ -227,7 +227,7 @@ func readLatestLactateThreshold(
 // spellings are read, exactly as upstream reads them.
 func applyLatestSpeedAndHeartRate(out *LactateThreshold, entries []api.LactateThresholdEntry) {
 	for _, entry := range entries {
-		if speed := optionalFloat(entry.Speed); speed != nil {
+		if speed := inverseSpeed(optionalFloat(entry.Speed)); speed != nil {
 			out.SpeedMPS = speed
 			out.SpeedHeartRateDate = entry.CalendarDate
 		}
@@ -256,26 +256,27 @@ func readLactateThresholdWindow(
 	}
 
 	series := []struct {
-		name string
-		read func() ([]api.ThresholdSample, error)
-		into *[]ThresholdPoint
+		name    string
+		read    func() ([]api.ThresholdSample, error)
+		convert func(*float64) *float64
+		into    *[]ThresholdPoint
 	}{
 		{lactatePartSpeed, func() ([]api.ThresholdSample, error) {
 			return scores.LactateThresholdSpeedRange(ctx, session, span)
-		}, &out.SpeedHistory},
+		}, inverseSpeed, &out.SpeedHistory},
 		{lactatePartHeartRate, func() ([]api.ThresholdSample, error) {
 			return scores.LactateThresholdHeartRateRange(ctx, session, span)
-		}, &out.HeartRateHistory},
+		}, nil, &out.HeartRateHistory},
 		{lactatePartPower, func() ([]api.ThresholdSample, error) {
 			return scores.FunctionalThresholdPowerRange(ctx, session, span)
-		}, &out.PowerHistory},
+		}, nil, &out.PowerHistory},
 	}
 	for _, part := range series {
 		samples, err := part.read()
 		if fatal := recordThresholdPart(&out, part.name, err); fatal != nil {
 			return LactateThreshold{}, fatal
 		}
-		points, truncated := thresholdPoints(samples, maxSamples)
+		points, truncated := thresholdPoints(samples, maxSamples, part.convert)
 		*part.into = points
 		out.Truncated = out.Truncated || truncated
 	}
@@ -287,7 +288,11 @@ func readLactateThresholdWindow(
 // thresholdPoints maps one series, bounded by the request layer's own date-window
 // bound: the series is aggregated daily, so a validated window holds at most one
 // sample per day and anything past that is drift rather than data.
-func thresholdPoints(samples []api.ThresholdSample, limit int) ([]ThresholdPoint, bool) {
+// convert, when set, restates each sample's value in the unit the series is reported
+// in; a series Garmin already reports in its stated unit passes nil.
+func thresholdPoints(
+	samples []api.ThresholdSample, limit int, convert func(*float64) *float64,
+) ([]ThresholdPoint, bool) {
 	truncated := false
 	if len(samples) > limit {
 		samples = samples[:limit]
@@ -296,13 +301,31 @@ func thresholdPoints(samples []api.ThresholdSample, limit int) ([]ThresholdPoint
 
 	out := make([]ThresholdPoint, 0, len(samples))
 	for _, sample := range samples {
+		value := optionalFloat(sample.Value)
+		if convert != nil {
+			value = convert(value)
+		}
 		out = append(out, ThresholdPoint{
 			Date:   optionalText(sample.From),
-			Value:  optionalFloat(sample.Value),
+			Value:  value,
 			Series: optionalText(sample.Series),
 		})
 	}
 	return out, truncated
+}
+
+// inverseSpeed restates Garmin's threshold speed in metres a second.
+//
+// The biometric endpoints report a threshold speed as seconds a metre — an inverse
+// pace — so the raw figure is the reciprocal of the speed this tool names. A figure
+// that cannot be inverted, zero or negative, produces no speed at all rather than an
+// infinity. Source: upstream training.py:726 and training.py:766, the fix for
+// upstream issue #245.
+func inverseSpeed(raw *float64) *float64 {
+	if raw == nil || *raw <= 0 {
+		return nil
+	}
+	return new(1 / *raw)
 }
 
 // recordThresholdPart records one part's outcome and reports the failures that must
