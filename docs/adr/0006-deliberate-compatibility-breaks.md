@@ -75,6 +75,7 @@ entry in `internal/tools/contract_test.go`.
 | `get_acclimation` | read-only | Reads the day's heat and altitude acclimation state, with the previous reading beside the current one. Reports available=false where Garmin holds no reading. |
 | `get_running_tolerance` | read-only | Reads Garmin's running load-capacity model for one day: capacity, intensity-adjusted load and distance in kilometres, plus the load-to-distance ratio. Reports supported=false where the device does not report the metric. |
 | `get_running_tolerance_trend` | read-only | Reads the same model over an inclusive window, daily or weekly, ordered oldest first because Garmin does not order the daily aggregation. Bounded at 90 days daily and 366 weekly. |
+| `get_sleep_summary_range` | read-only | Reads the compact sleep summary for every night of a window, oldest first, through the domain client's bounded per-night fan-out. Bounded at 90 nights. A night that cannot be read fails the call rather than being silently dropped, unlike upstream. |
 
 ### Approved brief deviations
 

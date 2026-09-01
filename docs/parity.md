@@ -23,10 +23,10 @@ when the manifest status and the registered surface disagree either way.
 | Manifest tools implemented | **137** of 138 |
 | Manifest tools not implemented | 1 (`set_fit_download_dir`) |
 | Manifest resources implemented | **5** of 5 |
-| Tools registered beyond the manifest | 10, one of them the server's own `server_info` |
-| Tools registered in total | 147 |
+| Tools registered beyond the manifest | 11, one of them the server's own `server_info` |
+| Tools registered in total | 148 |
 
-The 147 registered tools are 103 read-only, 35 write and 9 destructive. Read-only
+The 148 registered tools are 104 read-only, 35 write and 9 destructive. Read-only
 tools always register. Write and destructive tools register too, so the policy
 has a tool to refuse and the start-up tier validation covers them, and they are
 gated at call time by explicit operator enablement locally or its intersection
@@ -493,7 +493,7 @@ See [Deliberate deviations](#deliberate-deviations).
 Every row is registered by `internal/tools/register.go` in tier order. Paths are
 relative to the repository root.
 
-### Read-only tier — 102 tools
+### Read-only tier — 103 tools
 
 | Tool | Go registrar | File |
 | --- | --- | --- |
@@ -599,6 +599,7 @@ relative to the repository root.
 | `get_acclimation` † | `registerGetAcclimation` | `internal/tools/get_acclimation.go` |
 | `get_running_tolerance` † | `registerGetRunningTolerance` | `internal/tools/runningtolerance.go` |
 | `get_running_tolerance_trend` † | `registerGetRunningToleranceTrend` | `internal/tools/runningtolerance.go` |
+| `get_sleep_summary_range` † | `registerGetSleepSummaryRange` | `internal/tools/get_sleep_summary.go` |
 
 ### Write tier — 35 tools
 
@@ -686,6 +687,7 @@ than by moving it.
 | `get_acclimation` | read-only | upstream [e8554bc](https://github.com/Taxuspt/garmin_mcp/commit/e8554bc) | Reads the day's heat and altitude acclimation state, with the previous reading beside the current one. Reports available=false where Garmin holds no reading. |
 | `get_running_tolerance` | read-only | upstream [d6c9b40](https://github.com/Taxuspt/garmin_mcp/commit/d6c9b40) | Reads Garmin's running load-capacity model for one day: capacity, intensity-adjusted load and distance in kilometres, plus the load-to-distance ratio. Reports supported=false where the device does not report the metric. |
 | `get_running_tolerance_trend` | read-only | upstream [d6c9b40](https://github.com/Taxuspt/garmin_mcp/commit/d6c9b40) | Reads the same model over an inclusive window, daily or weekly, ordered oldest first because Garmin does not order the daily aggregation. Bounded at 90 days daily and 366 weekly. |
+| `get_sleep_summary_range` | read-only | upstream [572fc70](https://github.com/Taxuspt/garmin_mcp/commit/572fc70) | Reads the compact sleep summary for every night of a window, oldest first, through the domain client's bounded per-night fan-out. Bounded at 90 nights. A night that cannot be read fails the call rather than being silently dropped, unlike upstream. |
 
 Both pull requests were open against `Taxuspt/garmin_mcp` when this matrix was
 written: #214 "bump garminconnect to 0.3.7 and expose `update_workout` +
@@ -1242,6 +1244,18 @@ This matches upstream `_build_vo2_trend_series` and the reordered candidate path
 of `_extract_vo2_measurements` as of upstream's fix for issue #261, which lands
 after the pinned commit. Before it, both projects collapsed the series to the
 days the value changed and reported the rounded figure.
+
+### `get_sleep_summary_range` fails a night it cannot read, where upstream skips it
+
+Upstream's range read wraps each night in a bare `except Exception: pass`, so a
+night that fails is indistinguishable from a night the account holds nothing for.
+This server fails the whole call instead, with the same authored, sanitized advice
+a single-night read would return. `nights_requested` beside `nights_returned` then
+means what it says: the difference is nights the account holds no summary for, not
+nights that could not be read.
+
+It also reads the window through `Wellness.DailySleepRange`, whose fan-out is
+bounded by `Limits.MaxConcurrency`, rather than one night after another.
 
 ### `get_lactate_threshold` reports the threshold speed in metres a second
 

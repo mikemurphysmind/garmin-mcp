@@ -71,6 +71,7 @@ var wantReadOnlyToolNames = []string{
 	tools.ToolGetRespirationSummary,
 	tools.ToolGetSpO2Data,
 	tools.ToolGetSleepSummary,
+	tools.ToolGetSleepSummaryRange,
 	tools.ToolGetBloodPressure,
 	tools.ToolGetHydrationData,
 	tools.ToolGetLifestyleLoggingData,

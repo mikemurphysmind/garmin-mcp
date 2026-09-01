@@ -71,6 +71,7 @@ func additionsBeyondTheManifest() map[string]string {
 		tools.ToolGetAcclimation:                 "post-pin upstream addition: heat and altitude acclimation",
 		tools.ToolGetRunningTolerance:            "post-pin upstream addition: running load capacity",
 		tools.ToolGetRunningToleranceTrend:       "post-pin upstream addition: running load capacity trend",
+		tools.ToolGetSleepSummaryRange:           "post-pin upstream addition: multi-night sleep summaries",
 	}
 }
 

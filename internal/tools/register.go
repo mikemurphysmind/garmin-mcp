@@ -129,6 +129,7 @@ func readOnlyRegistrations() []registration {
 		{getRespirationSummaryContract, registerGetRespirationSummary},
 		{getSpO2DataContract, registerGetSpO2Data},
 		{getSleepSummaryContract, registerGetSleepSummary},
+		{getSleepSummaryRangeContract, registerGetSleepSummaryRange},
 		{getBloodPressureContract, registerGetBloodPressure},
 		{getHydrationDataContract, registerGetHydrationData},
 		{getLifestyleLoggingDataContract, registerGetLifestyleLoggingData},

@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"log/slog"
+	"strconv"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/tamcore/garmin-mcp/internal/garmin/api"
@@ -144,4 +145,125 @@ func addSleepDigest(out *SleepSummary, digest api.SleepDigest) {
 		out.AvgSpO2Percent = optionalFloat(spo2.AverageSpO2)
 		out.LowestSpO2Percent = optionalFloat(spo2.LowestSpO2)
 	}
+}
+
+// ToolGetSleepSummaryRange is the upstream compatibility name of the multi-night
+// sleep read. It is an addition beyond the pinned manifest: upstream added it after
+// the pinned commit.
+const ToolGetSleepSummaryRange = "get_sleep_summary_range"
+
+// MaxSleepSummaryRangeNights bounds the window the range read accepts. Garmin exposes
+// no range endpoint for sleep, so the tool reads one night per request and the bound
+// is what stops one MCP call from becoming an unbounded burst of Garmin reads.
+//
+// Source: MAX_DAYS = 90 in upstream's get_sleep_summary_range.
+const MaxSleepSummaryRangeNights = 90
+
+// SleepSummaryRange is every night of a window that carried a summary.
+//
+// A night the device was not worn carries nothing and is not returned;
+// nights_requested and nights_returned together say how much of the window the
+// account holds, so a short list is never mistaken for a complete one. It is health
+// data: never log it.
+type SleepSummaryRange struct {
+	StartDate string `json:"start_date" jsonschema:"the inclusive first night, YYYY-MM-DD"`
+	EndDate   string `json:"end_date" jsonschema:"the inclusive last night, YYYY-MM-DD"`
+
+	NightsRequested int `json:"nights_requested" jsonschema:"how many nights the window spans"`
+	NightsReturned  int `json:"nights_returned" jsonschema:"how many nights carried a summary"`
+
+	Nights []SleepSummary `json:"nights" jsonschema:"the nights that carried a summary, oldest first"`
+}
+
+// LogValue reports the shape of the window and never a reading.
+func (s SleepSummaryRange) LogValue() slog.Value {
+	return shape("sleepSummaryRange",
+		slog.Int("nightsReturned", len(s.Nights)),
+	)
+}
+
+// sleepSummaryRangeInput is the strict argument set: an inclusive night window.
+type sleepSummaryRangeInput struct {
+	StartDate string `json:"start_date" jsonschema:"the inclusive first night, YYYY-MM-DD"`
+	EndDate   string `json:"end_date" jsonschema:"the inclusive last night, YYYY-MM-DD"`
+}
+
+func getSleepSummaryRangeContract() Contract {
+	return Contract{
+		Spec: mcpserver.ToolSpec{
+			Name:  ToolGetSleepSummaryRange,
+			Title: "Get sleep summaries for a window",
+			Description: "read the same compact summary get_sleep_summary returns for " +
+				"every night of an inclusive date window, oldest first. Garmin exposes no " +
+				"range endpoint for sleep, so this reads one night per request under a " +
+				"bounded fan-out: the window may span at most " +
+				strconv.Itoa(MaxSleepSummaryRangeNights) + " nights. A night Garmin holds " +
+				"nothing for is not returned, and nights_requested beside nights_returned " +
+				"says how much of the window the account holds",
+			Tier:        policy.TierReadOnly,
+			Category:    categoryHealth,
+			Annotations: readOnlyAnnotations(),
+		},
+		Schema: NewSchema(trendWindowProperties(MaxSleepSummaryRangeNights)...),
+	}
+}
+
+// registerGetSleepSummaryRange registers the tool.
+func registerGetSleepSummaryRange(registry *mcpserver.Registry, svc *service) error {
+	handler := func(ctx context.Context, _ *mcp.CallToolRequest, in sleepSummaryRangeInput) (
+		*mcp.CallToolResult, SleepSummaryRange, error,
+	) {
+		out, err := svc.readSleepSummaryRange(ctx, in.StartDate, in.EndDate)
+		return nil, out, err
+	}
+	return mcpserver.AddTool(registry, getSleepSummaryRangeContract().Registration(), handler)
+}
+
+// readSleepSummaryRange reads every night of the window through the domain client's
+// bounded fan-out, and curates each one exactly as the single-night tool does.
+//
+// The display name the wellness paths take as a segment is resolved once for the whole
+// window, so the window costs one profile read and one sleep read a night.
+//
+// A night that cannot be read fails the whole call, where upstream swallows the
+// failure and continues. That is deliberate: a silently dropped night is
+// indistinguishable from a night the account holds nothing for, which makes a partial
+// window look complete. A caller that hits one bad night can narrow the window.
+func (s *service) readSleepSummaryRange(
+	ctx context.Context, start, end string,
+) (SleepSummaryRange, error) {
+	window, err := s.resolveTrendWindow(ctx, start, end, MaxSleepSummaryRangeNights)
+	if err != nil {
+		return SleepSummaryRange{}, err
+	}
+	name, err := s.displayName(ctx, window.session)
+	if err != nil {
+		return SleepSummaryRange{}, err
+	}
+
+	days, err := s.wellness.DailySleepRange(ctx, window.session, name, window.span)
+	if err != nil {
+		return SleepSummaryRange{}, fail(err)
+	}
+
+	nights := make([]SleepSummary, 0, len(days))
+	for index, day := range days {
+		digest, err := api.NewSleepDigest(day)
+		if err != nil {
+			return SleepSummaryRange{}, fail(err)
+		}
+		night := newSleepSummary(window.span.Start().AddDays(index).String(), day, digest)
+		if !night.HasData {
+			continue
+		}
+		nights = append(nights, night)
+	}
+
+	return SleepSummaryRange{
+		StartDate:       window.span.Start().String(),
+		EndDate:         window.span.End().String(),
+		NightsRequested: window.span.Days(),
+		NightsReturned:  len(nights),
+		Nights:          nights,
+	}, nil
 }
