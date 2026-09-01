@@ -203,10 +203,10 @@ func TestTrainingStatusPrefersThePrimaryDevice(t *testing.T) {
 	if vo2 == nil || vo2.Generic == nil {
 		t.Fatal("the VO2 max section did not decode")
 	}
-	// Upstream's candidate paths reach vo2MaxValue before vo2MaxPreciseValue and the
-	// first match wins, so the rounded figure is the compatible answer here.
-	if got, _ := vo2.Generic.Value().Float64(); got != 52 {
-		t.Errorf("vo2 max = %v, want the rounded 52 upstream reports first", got)
+	// Upstream's candidate paths reach vo2MaxPreciseValue before vo2MaxValue and the
+	// first match wins, so the 0.1-precision figure is the compatible answer here.
+	if got, _ := vo2.Generic.Value().Float64(); got != 52.3 {
+		t.Errorf("vo2 max = %v, want the precise 52.3 upstream reports first", got)
 	}
 }
 
@@ -339,10 +339,12 @@ func TestSelectStatusDeviceIsTheOneSelectorBothReadersUse(t *testing.T) {
 	}
 }
 
-// TestVO2MaxEntryPrefersTheRoundedValueLikeUpstream pins the precedence to the pinned
-// upstream's, where the candidate paths list vo2MaxValue before vo2MaxPreciseValue
-// and the first match wins. Reversing it is a silent one-tenth parity break.
-func TestVO2MaxEntryPrefersTheRoundedValueLikeUpstream(t *testing.T) {
+// TestVO2MaxEntryPrefersThePreciseValueLikeUpstream pins the precedence to upstream's,
+// where the candidate paths list vo2MaxPreciseValue before vo2MaxValue and the first
+// match wins. vo2MaxValue is rounded to 0.5; the precise figure is the one Garmin
+// Connect's chart and the per-date training status report. Source: upstream's fix for
+// issue #261.
+func TestVO2MaxEntryPrefersThePreciseValueLikeUpstream(t *testing.T) {
 	t.Parallel()
 
 	var both api.VO2MaxEntry
@@ -351,8 +353,16 @@ func TestVO2MaxEntryPrefersTheRoundedValueLikeUpstream(t *testing.T) {
 	); err != nil {
 		t.Fatalf("Unmarshal() = %v", err)
 	}
-	if got, ok := both.Value().Float64(); !ok || got != 52.0 {
-		t.Errorf("Value() = %v, want the rounded 52 upstream reports first", got)
+	if got, ok := both.Value().Float64(); !ok || got != 52.3 {
+		t.Errorf("Value() = %v, want the precise 52.3 upstream reports first", got)
+	}
+
+	var roundedOnly api.VO2MaxEntry
+	if err := json.Unmarshal([]byte(`{"vo2MaxValue":52.0}`), &roundedOnly); err != nil {
+		t.Fatalf("Unmarshal() = %v", err)
+	}
+	if got, ok := roundedOnly.Value().Float64(); !ok || got != 52.0 {
+		t.Errorf("Value() = %v, want the rounded 52 when it is the only one sent", got)
 	}
 
 	var preciseOnly api.VO2MaxEntry

@@ -29,10 +29,14 @@ const (
 )
 
 // VO2MaxPoint is one dated VO2 max estimate.
+//
+// CarriedForward marks a day Garmin recorded no estimate for, which carries the last
+// measured one, exactly as Garmin Connect's own chart does.
 type VO2MaxPoint struct {
-	Date   string  `json:"date" jsonschema:"the calendar day, YYYY-MM-DD"`
-	VO2Max float64 `json:"vo2_max" jsonschema:"the estimate for that day"`
-	Source string  `json:"source" jsonschema:"which Garmin read the estimate came from"`
+	Date           string  `json:"date" jsonschema:"the calendar day, YYYY-MM-DD"`
+	VO2Max         float64 `json:"vo2_max" jsonschema:"the estimate for that day"`
+	Source         string  `json:"source" jsonschema:"which Garmin read the estimate came from"`
+	CarriedForward bool    `json:"carried_forward,omitzero" jsonschema:"whether the day carries the previous estimate"`
 }
 
 // LogValue reports that a point exists, never the estimate.
@@ -51,23 +55,24 @@ func (e VO2MaxEstimate) LogValue() slog.Value { return shape("vo2MaxEstimate") }
 
 // VO2MaxTrend is the VO2 max trend over a bounded window.
 //
-// A VO2 max is a health reading: never log it. The trend carries only the days on
-// which the estimate changed, which is what upstream reports; days_with_data says how
-// many days actually carried a measurement, so the shorter list is never mistaken for
-// the coverage.
+// A VO2 max is a health reading: never log it. The trend is a dense daily series from
+// the first measured day through the end of the window: Garmin records an estimate
+// only on a day it recomputed one, and its own chart carries each value forward until
+// the next. A carried day is marked, and days_with_data says how many days actually
+// carried a measurement, so a carried value is never mistaken for one.
 type VO2MaxTrend struct {
 	StartDate string `json:"start_date" jsonschema:"the first calendar day of the window"`
 	EndDate   string `json:"end_date" jsonschema:"the last calendar day of the window"`
 
 	Sport        string `json:"sport,omitempty" jsonschema:"the sport with the best coverage in the window"`
 	DaysWithData int    `json:"days_with_data" jsonschema:"how many days carried a measurement"`
-	DataPoints   int    `json:"data_points" jsonschema:"how many entries the trend holds, one per change"`
+	DataPoints   int    `json:"data_points" jsonschema:"how many entries the trend holds, one a day"`
 
 	FirstVO2Max  *float64 `json:"first_vo2_max,omitempty" jsonschema:"the earliest estimate in the window"`
 	LatestVO2Max *float64 `json:"latest_vo2_max,omitempty" jsonschema:"the latest estimate in the window"`
 	Change       *float64 `json:"change,omitempty" jsonschema:"latest minus first"`
 
-	Trend    []VO2MaxPoint   `json:"trend" jsonschema:"one entry per day the estimate changed, oldest first"`
+	Trend    []VO2MaxPoint   `json:"trend" jsonschema:"one entry a day from the first measured day, oldest first"`
 	Current  *VO2MaxEstimate `json:"current_vo2_max_estimate,omitempty" jsonschema:"the profile estimate"`
 	Note     string          `json:"note,omitempty" jsonschema:"why the profile estimate is reported instead of a history"`
 	Coverage TrendCoverage   `json:"coverage" jsonschema:"how complete this trend is"`
@@ -89,10 +94,12 @@ func getVO2MaxTrendContract() Contract {
 			Title: "Get the VO2 max trend",
 			Description: "read the account's VO2 max estimates over a date window. The " +
 				"whole window is asked for in one request first; only the days that " +
-				"request did not cover are then read one at a time. The estimates are " +
-				"smoothed, so the trend carries the days on which the value changed. If no " +
-				"history is available the current profile estimate is reported separately " +
-				"and never as a historical point. The window is at most 90 days",
+				"request did not cover are then read one at a time. Garmin records an " +
+				"estimate only on a day it recomputed one, so a day in between carries " +
+				"the last measured value and is marked carried_forward, matching the " +
+				"trend chart in Garmin Connect. If no history is available the current " +
+				"profile estimate is reported separately and never as a historical " +
+				"point. The window is at most 90 days",
 			Tier:        policy.TierReadOnly,
 			Category:    categoryHealth,
 			Annotations: readOnlyAnnotations(),
@@ -255,7 +262,7 @@ func (s *service) newVO2MaxTrend(
 	ctx context.Context, window trendWindow, collector *vo2Collector, coverage TrendCoverage,
 ) VO2MaxTrend {
 	sport, points := collector.best()
-	trend := changePoints(points)
+	trend := carryForward(points, window.span.End())
 
 	out := VO2MaxTrend{
 		StartDate:    window.span.Start().String(),
@@ -299,20 +306,38 @@ func (s *service) currentVO2Max(ctx context.Context, session client.Session) *VO
 	return nil
 }
 
-// changePoints keeps the days on which the estimate changed.
+// carryForward expands the measured days into one entry a day.
 //
-// Source: upstream drops a day whose value equals the previous one, because Garmin's
-// estimate is smoothed and repeats for weeks. days_with_data reports the days that
-// actually carried a measurement, so the shorter list loses no information.
-func changePoints(points []VO2MaxPoint) []VO2MaxPoint {
+// Garmin's max-metrics read records an entry only on a day it recomputed the estimate,
+// while Garmin Connect's chart carries each value forward until the next recompute. The
+// series therefore runs from the first measured day through the end of the window, and
+// a day that carries a value rather than holding one is marked. Nothing is invented
+// before the first measurement: a window that opens earlier reports no entry there.
+//
+// Source: upstream _build_vo2_trend_series, the fix for upstream issue #261.
+func carryForward(points []VO2MaxPoint, end client.Date) []VO2MaxPoint {
+	if len(points) == 0 {
+		return []VO2MaxPoint{}
+	}
+
+	measured := make(map[string]VO2MaxPoint, len(points))
+	for _, point := range points {
+		measured[point.Date] = point
+	}
+
 	out := make([]VO2MaxPoint, 0, len(points))
-	previous := 0.0
-	for index, point := range points {
-		if index > 0 && point.VO2Max == previous {
+	last := VO2MaxPoint{}
+	for day, err := client.ParseDate(points[0].Date); err == nil &&
+		!day.Time().After(end.Time()); day = day.AddDays(1) {
+		if point, ok := measured[day.String()]; ok {
+			last = point
+			out = append(out, point)
 			continue
 		}
-		out = append(out, point)
-		previous = point.VO2Max
+		out = append(out, VO2MaxPoint{
+			Date: day.String(), VO2Max: last.VO2Max, Source: last.Source,
+			CarriedForward: true,
+		})
 	}
 	return out
 }

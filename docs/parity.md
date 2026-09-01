@@ -1194,6 +1194,30 @@ This is a bug fixed, not a compatibility break, and it is recorded here rather
 than in the ADR 0006 register for that reason. The endpoint set is unchanged: both
 projects request the same two range paths.
 
+### `get_vo2max_trend` returns a dense daily series with carried-forward days
+
+Garmin's max-metrics read records an entry only on a day it recomputed the
+estimate, while Garmin Connect's own chart carries each value forward until the
+next recompute. The trend therefore runs one entry a day from the first measured
+day through the end of the window, and a day that carries the previous value
+rather than holding its own is marked `"carried_forward": true`.
+`days_with_data` still counts the days that carried a measurement, so a carried
+value is never mistaken for one.
+
+Two related figures changed with it:
+
+- `data_points` is now the number of entries the series holds, one a day, rather
+  than the number of days on which the value changed.
+- The per-day estimate is taken from `vo2MaxPreciseValue` first and from the
+  0.5-rounded `vo2MaxValue` only when the precise field is absent. The precise
+  figure is what the chart and the per-date training status report.
+  `get_training_status` still returns both fields separately.
+
+This matches upstream `_build_vo2_trend_series` and the reordered candidate paths
+of `_extract_vo2_measurements` as of upstream's fix for issue #261, which lands
+after the pinned commit. Before it, both projects collapsed the series to the
+days the value changed and reported the rounded figure.
+
 ### `get_lactate_threshold` reports the threshold speed in metres a second
 
 Garmin reports a lactate-threshold speed as seconds a metre — an inverse pace —

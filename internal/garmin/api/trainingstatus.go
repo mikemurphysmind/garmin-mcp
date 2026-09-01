@@ -95,19 +95,19 @@ type VO2MaxEntry struct {
 	VO2MaxPreciseValue client.Number `json:"vo2MaxPreciseValue"`
 }
 
-// Value takes the rounded estimate and falls back to the precise one.
+// Value takes the precise estimate and falls back to the rounded one.
 //
-// That order is upstream's, and it is the whole point of citing it: the candidate
-// paths of _extract_vo2_measurements list vo2MaxValue before vo2MaxPreciseValue and
-// the first match wins, so a document carrying 52.0 and 52.3 reports 52.0. Preferring
-// the precise field reads like an improvement and is a parity break — the same figure
-// this tool reports would differ from upstream's by a tenth, silently. A caller that
-// wants the precise reading has it: get_training_status returns both, separately.
+// That order is upstream's: the candidate paths of _extract_vo2_measurements list
+// vo2MaxPreciseValue before vo2MaxValue and the first match wins, so a document
+// carrying 52.0 and 52.3 reports 52.3. vo2MaxValue is rounded to 0.5, while the 0.1
+// figure is what Garmin Connect's chart and the per-date training status report.
+// Upstream listed the rounded field first until its fix for issue #261, and this
+// package followed that order until the same fix.
 func (e VO2MaxEntry) Value() client.Number {
-	if e.VO2MaxValue.IsSet() {
-		return e.VO2MaxValue
+	if e.VO2MaxPreciseValue.IsSet() {
+		return e.VO2MaxPreciseValue
 	}
-	return e.VO2MaxPreciseValue
+	return e.VO2MaxValue
 }
 
 // TrainingStatusLatest is the device-keyed status block.

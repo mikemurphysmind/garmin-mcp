@@ -40,10 +40,15 @@ func TestVO2MaxTrendReadsTheWholeWindowInOneRequest(t *testing.T) {
 	if out.DaysWithData != 3 {
 		t.Errorf("days_with_data = %d, want 3", out.DaysWithData)
 	}
-	// The repeated day is dropped from the trend but still counted above, so the
-	// shorter list loses no information.
-	if out.DataPoints != 2 || len(out.Trend) != 2 {
-		t.Fatalf("trend = %+v, want the two change points", out.Trend)
+	// Every day of the window carried a measurement, so the dense series holds one
+	// entry a day and none of them is carried forward.
+	if out.DataPoints != 3 || len(out.Trend) != 3 {
+		t.Fatalf("trend = %+v, want one entry a day", out.Trend)
+	}
+	for _, point := range out.Trend {
+		if point.CarriedForward {
+			t.Errorf("%s is marked carried forward, but it was measured", point.Date)
+		}
 	}
 	if out.Sport != sportRunning {
 		t.Errorf("sport = %q, want running", out.Sport)
@@ -83,7 +88,7 @@ func TestVO2MaxTrendFallsBackToTheDailyStatusForUncoveredDays(t *testing.T) {
 	if out.DaysWithData != 3 {
 		t.Errorf("days_with_data = %d, want 3", out.DaysWithData)
 	}
-	if len(out.Trend) != 2 || out.Trend[1].Source != sourceTrainingStatus {
+	if len(out.Trend) != 3 || out.Trend[1].Source != sourceTrainingStatus {
 		t.Errorf("trend = %+v, want the fallback source named", out.Trend)
 	}
 }
@@ -105,8 +110,8 @@ func TestVO2MaxTrendSurvivesAFailedRangeRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("readVO2MaxTrend() = %v", err)
 	}
-	if out.DaysWithData != 3 || len(out.Trend) != 1 {
-		t.Errorf("result = %+v, want three days collapsing to one change point", out)
+	if out.DaysWithData != 3 || len(out.Trend) != 3 {
+		t.Errorf("result = %+v, want the three days the per-day reads answered", out)
 	}
 }
 
@@ -241,5 +246,105 @@ func TestVO2MaxTrendDropsRangeDaysOutsideTheWindow(t *testing.T) {
 		if point.Date < trendStart || point.Date > trendEnd {
 			t.Errorf("trend carries %s, which is outside %s..%s", point.Date, trendStart, trendEnd)
 		}
+	}
+}
+
+// TestVO2MaxTrendCarriesTheLastValueForward proves the trend is a dense daily series.
+//
+// Garmin records a VO2 max only on a day it recomputed one, so a window holds far
+// fewer entries than days. Garmin Connect's own chart carries each value forward until
+// the next recompute; a series that collapses to the recompute days reports a fraction
+// of the history the account has. Source: upstream _build_vo2_trend_series, the fix
+// for upstream issue #261.
+func TestVO2MaxTrendCarriesTheLastValueForward(t *testing.T) {
+	t.Parallel()
+
+	firstDayOnly := `[{"generic":{"calendarDate":"` + trendStart + `","vo2MaxValue":51.5}}]`
+	script := vo2Script(firstDayOnly)
+	// The two later days answer, and carry no VO2 max section at all.
+	for _, day := range []string{trendMid, trendEnd} {
+		script = script.With(client.PathTrainingStatusPrefix+"/"+day,
+			testkit.JSON(http.StatusOK, `{}`))
+	}
+	h := newTrendHarness(t, script)
+
+	out, err := h.svc.readVO2MaxTrend(h.ctx, trendStart, trendEnd)
+	if err != nil {
+		t.Fatalf("readVO2MaxTrend() = %v", err)
+	}
+
+	if out.DaysWithData != 1 {
+		t.Errorf("days_with_data = %d, want the one day that carried a measurement", out.DaysWithData)
+	}
+	if len(out.Trend) != 3 {
+		t.Fatalf("trend = %+v, want one entry a day through the end of the window", out.Trend)
+	}
+	if out.Trend[0].CarriedForward {
+		t.Error("the measured day is marked carried forward")
+	}
+	for _, index := range []int{1, 2} {
+		point := out.Trend[index]
+		if !point.CarriedForward {
+			t.Errorf("trend[%d] on %s is not marked carried forward", index, point.Date)
+		}
+		if point.VO2Max != 51.5 {
+			t.Errorf("trend[%d].vo2_max = %v, want the last measured 51.5", index, point.VO2Max)
+		}
+	}
+	if out.Trend[2].Date != trendEnd {
+		t.Errorf("the series ends on %s, want the window's last day %s", out.Trend[2].Date, trendEnd)
+	}
+}
+
+// TestVO2MaxTrendStartsAtTheFirstMeasuredDay proves nothing is invented before the
+// first measurement: a window that opens before the account has any reading reports no
+// entry for those days rather than a value it does not have.
+func TestVO2MaxTrendStartsAtTheFirstMeasuredDay(t *testing.T) {
+	t.Parallel()
+
+	lastDayOnly := `[{"generic":{"calendarDate":"` + trendEnd + `","vo2MaxValue":52.5}}]`
+	script := vo2Script(lastDayOnly)
+	for _, day := range []string{trendStart, trendMid} {
+		script = script.With(client.PathTrainingStatusPrefix+"/"+day,
+			testkit.JSON(http.StatusOK, `{}`))
+	}
+	h := newTrendHarness(t, script)
+
+	out, err := h.svc.readVO2MaxTrend(h.ctx, trendStart, trendEnd)
+	if err != nil {
+		t.Fatalf("readVO2MaxTrend() = %v", err)
+	}
+
+	if len(out.Trend) != 1 {
+		t.Fatalf("trend = %+v, want only the measured day", out.Trend)
+	}
+	if out.Trend[0].Date != trendEnd || out.Trend[0].CarriedForward {
+		t.Errorf("trend[0] = %+v, want the measured last day", out.Trend[0])
+	}
+}
+
+// TestVO2MaxTrendPrefersThePreciseEstimate proves the 0.1-precision figure wins over
+// the 0.5-rounded one, which is what Garmin Connect's chart and the per-date training
+// status report. Source: upstream _extract_vo2_measurements, whose candidate paths now
+// list vo2MaxPreciseValue before vo2MaxValue.
+func TestVO2MaxTrendPrefersThePreciseEstimate(t *testing.T) {
+	t.Parallel()
+
+	body := `[{"generic":{"calendarDate":"` + trendStart +
+		`","vo2MaxValue":52.0,"vo2MaxPreciseValue":52.3}}]`
+	script := vo2Script(body)
+	for _, day := range []string{trendMid, trendEnd} {
+		script = script.With(client.PathTrainingStatusPrefix+"/"+day,
+			testkit.JSON(http.StatusOK, `{}`))
+	}
+	h := newTrendHarness(t, script)
+
+	out, err := h.svc.readVO2MaxTrend(h.ctx, trendStart, trendEnd)
+	if err != nil {
+		t.Fatalf("readVO2MaxTrend() = %v", err)
+	}
+
+	if len(out.Trend) == 0 || out.Trend[0].VO2Max != 52.3 {
+		t.Fatalf("trend = %+v, want the precise 52.3", out.Trend)
 	}
 }
