@@ -53,11 +53,9 @@ func (k Kind) String() string {
 // Default budgets. They are generous enough for interactive use and small enough
 // that a runaway agent loop hits them before Garmin does.
 const (
-	DefaultReadPerMinute  = 120
-	DefaultReadBurst      = 20
-	DefaultWritePerMinute = 30
-	DefaultWriteBurst     = 5
-	DefaultMaxPrincipals  = 1024
+	DefaultReadBurst     = 20
+	DefaultWriteBurst    = 5
+	DefaultMaxPrincipals = 1024
 )
 
 // Config is the limiter configuration. Every field must be positive; New refuses
@@ -76,17 +74,6 @@ type Config struct {
 	// MaxPrincipals bounds how many principals hold a budget at once. When the
 	// table is full the least recently used entry is evicted.
 	MaxPrincipals int
-}
-
-// DefaultConfig returns the shipped defaults.
-func DefaultConfig() Config {
-	return Config{
-		ReadPerMinute:  DefaultReadPerMinute,
-		ReadBurst:      DefaultReadBurst,
-		WritePerMinute: DefaultWritePerMinute,
-		WriteBurst:     DefaultWriteBurst,
-		MaxPrincipals:  DefaultMaxPrincipals,
-	}
 }
 
 // A Result is the outcome of one Allow call.

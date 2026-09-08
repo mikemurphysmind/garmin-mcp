@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -40,21 +39,6 @@ func TestNewRefusesAnUnknownFormat(t *testing.T) {
 	_, err := mcplog.New(&bytes.Buffer{}, mcplog.Config{Format: mcplog.Format(99)})
 	if !errors.Is(err, mcplog.ErrInvalidFormat) {
 		t.Fatalf("New with an unknown format error = %v, want ErrInvalidFormat", err)
-	}
-}
-
-func TestNewStderrWritesToStderrAndNotStdout(t *testing.T) {
-	t.Parallel()
-
-	logger, err := mcplog.NewStderr(mcplog.Config{})
-	if err != nil {
-		t.Fatalf("NewStderr returned error: %v", err)
-	}
-	if logger == nil {
-		t.Fatal("NewStderr returned a nil logger")
-	}
-	if logger.Sink() != os.Stderr {
-		t.Fatalf("Sink() = %v, want os.Stderr", logger.Sink())
 	}
 }
 

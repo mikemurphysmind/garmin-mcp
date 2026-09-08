@@ -303,19 +303,15 @@ var (
 // to a default, which could quietly raise or lower log verbosity.
 func (c Config) validateLogging() error {
 	var errs []error
-	if !containsString(logLevels[:], c.LogLevel) {
+	if !slices.Contains(logLevels[:], c.LogLevel) {
 		errs = append(errs, newFieldError(keyLogLevel,
 			"must be one of "+strings.Join(logLevels[:], ", "), ErrInvalidConfig))
 	}
-	if !containsString(logFormats[:], c.LogFormat) {
+	if !slices.Contains(logFormats[:], c.LogFormat) {
 		errs = append(errs, newFieldError(keyLogFormat,
 			"must be one of "+strings.Join(logFormats[:], ", "), ErrInvalidConfig))
 	}
 	return errors.Join(errs...)
-}
-
-func containsString(haystack []string, needle string) bool {
-	return slices.Contains(haystack, needle)
 }
 
 // maxLoginAllowedEmails bounds the login allowlist, and maxAllowedEmailLen bounds
@@ -348,7 +344,7 @@ func (c Config) validateLoginAllowedEmails() []error {
 			continue
 		}
 		folded := strings.ToLower(entry)
-		if containsString(seen, folded) {
+		if slices.Contains(seen, folded) {
 			errs = append(errs, newFieldError(keyLoginAllowedEmails,
 				fmt.Sprintf("entry %d repeats an earlier address, ignoring case", i),
 				ErrInvalidConfig))

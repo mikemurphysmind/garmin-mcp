@@ -82,30 +82,6 @@ func New(w io.Writer, cfg Config) (*Logger, error) {
 		return nil, fmt.Errorf("refusing to log to stdout: %w", ErrStdoutReserved)
 	}
 
-	return newLogger(w, cfg)
-}
-
-// isReservedStdout reports whether w is the stdout that carries MCP frames.
-//
-// The comparison is meaningful only when the process can tell its two output
-// streams apart. Under `go test -json` the toolchain points os.Stderr at
-// os.Stdout so stderr output reaches the JSON event stream, and then every
-// correct sink also equals os.Stdout: refusing there would fail the exact
-// environment CI runs in while preventing nothing. Where the streams are
-// genuinely the same file, the invariant this guard protects cannot be expressed
-// by choosing a writer, so it is enforced where the frame stream is known — the
-// transport is built with an explicit frame writer and checks the sink against
-// it.
-func isReservedStdout(w io.Writer) bool {
-	if os.Stdout == os.Stderr {
-		return false
-	}
-	return w == io.Writer(os.Stdout)
-}
-
-// newLogger builds the Logger without the stdout refusal. Only New and NewStderr
-// call it, and each states which guard it applies.
-func newLogger(w io.Writer, cfg Config) (*Logger, error) {
 	opts := &slog.HandlerOptions{Level: cfg.Level}
 	var handler slog.Handler
 	switch cfg.Format {
@@ -125,22 +101,22 @@ func newLogger(w io.Writer, cfg Config) (*Logger, error) {
 	}, nil
 }
 
-// NewStderr returns a Logger that writes to os.Stderr, which is the only sink the
-// stdio transport permits.
+// isReservedStdout reports whether w is the stdout that carries MCP frames.
 //
-// It deliberately does not apply New's stdout refusal to os.Stderr. Under
-// `go test -json` the toolchain points the test binary's os.Stderr at os.Stdout
-// so that stderr output is captured in the JSON event stream, which makes the
-// two values identical and would make this constructor fail in exactly the
-// environment CI uses. The invariant that matters is that log records never
-// reach the stream carrying MCP frames, and that is enforced where the frame
-// stream is known: the stdio transport is constructed with an explicit frame
-// writer, and Sink lets a caller assert the two differ.
-func NewStderr(cfg Config) (*Logger, error) {
-	if os.Stderr == nil {
-		return nil, fmt.Errorf("no writer given: %w", ErrNoSink)
+// The comparison is meaningful only when the process can tell its two output
+// streams apart. Under `go test -json` the toolchain points os.Stderr at
+// os.Stdout so stderr output reaches the JSON event stream, and then every
+// correct sink also equals os.Stdout: refusing there would fail the exact
+// environment CI runs in while preventing nothing. Where the streams are
+// genuinely the same file, the invariant this guard protects cannot be expressed
+// by choosing a writer, so it is enforced where the frame stream is known — the
+// transport is built with an explicit frame writer and checks the sink against
+// it.
+func isReservedStdout(w io.Writer) bool {
+	if os.Stdout == os.Stderr {
+		return false
 	}
-	return newLogger(os.Stderr, cfg)
+	return w == io.Writer(os.Stdout)
 }
 
 // Sink reports the writer records go to, or nil for a nil Logger. It exists so a

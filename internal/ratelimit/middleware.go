@@ -20,14 +20,12 @@ const methodCallTool = "tools/call"
 // names. The server supplies a classifier backed by the policy tier table.
 type Classifier func(tool string) Kind
 
-// An Observer is told about every limiter decision the middleware makes.
+// An Observer is told about every limiter refusal the middleware makes.
 //
 // It exists so the logging middleware, which sits outside this one, can record a
-// rate-limited outcome without this package importing it. Implementations must not
-// block: they run on the request path.
-type Observer interface {
-	RateLimited(ctx context.Context, result Result)
-}
+// rate-limited outcome without this package importing it. It must not block: it
+// runs on the request path.
+type Observer func(ctx context.Context, result Result)
 
 // Middleware returns MCP receiving middleware that charges each tools/call to the
 // calling principal's budget.
@@ -56,7 +54,7 @@ func Middleware(limiter *Limiter, classify Classifier, observer Observer) mcp.Mi
 			// recorded by the logging middleware that wraps this one, so
 			// reporting it here would double-count it.
 			if observer != nil {
-				observer.RateLimited(ctx, result)
+				observer(ctx, result)
 			}
 			return ErrorResult(result), nil
 		}

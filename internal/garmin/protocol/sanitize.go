@@ -3,6 +3,7 @@ package protocol
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Length bounds for the values lifted out of a Garmin response. They keep a
@@ -163,27 +164,33 @@ func containsWordPhrase(text, phrase string) bool {
 		return false
 	}
 
-	runes := []rune(text)
-	target := []rune(phrase)
-	for offset := 0; offset+len(target) <= len(runes); offset++ {
-		if string(runes[offset:offset+len(target)]) != phrase {
-			continue
+	for offset := 0; offset+len(phrase) <= len(text); {
+		i := strings.Index(text[offset:], phrase)
+		if i < 0 {
+			return false
 		}
-		if isWordBoundary(runes, offset-1) && isWordBoundary(runes, offset+len(target)) {
+		start := offset + i
+		if endsOnBoundary(text[:start]) && startsOnBoundary(text[start+len(phrase):]) {
 			return true
 		}
+		offset = start + 1
 	}
 	return false
 }
 
-// isWordBoundary reports whether the rune at index is absent or not alphanumeric.
-func isWordBoundary(runes []rune, index int) bool {
-	if index < 0 || index >= len(runes) {
-		return true
-	}
-	r := runes[index]
-	return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+// endsOnBoundary reports whether prefix is empty or ends in a non-alphanumeric
+// rune, and startsOnBoundary asks the same of the other side of a match.
+func endsOnBoundary(prefix string) bool {
+	r, size := utf8.DecodeLastRuneInString(prefix)
+	return size == 0 || !isWordRune(r)
 }
+
+func startsOnBoundary(suffix string) bool {
+	r, size := utf8.DecodeRuneInString(suffix)
+	return size == 0 || !isWordRune(r)
+}
+
+func isWordRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }
 
 // containsAnyWordPhrase reports whether any phrase occurs as a delimited word.
 func containsAnyWordPhrase(text string, phrases ...string) bool {

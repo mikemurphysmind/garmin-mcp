@@ -54,14 +54,6 @@ func testConfig() ratelimit.Config {
 	}
 }
 
-func TestDefaultConfigIsValid(t *testing.T) {
-	t.Parallel()
-
-	if _, err := ratelimit.New(ratelimit.DefaultConfig(), nil); err != nil {
-		t.Fatalf("New(DefaultConfig()) returned error: %v", err)
-	}
-}
-
 func TestNewRejectsNonPositiveBudgets(t *testing.T) {
 	t.Parallel()
 

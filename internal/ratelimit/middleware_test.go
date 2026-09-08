@@ -32,7 +32,7 @@ type recordingObserver struct {
 	results []ratelimit.Result
 }
 
-func (o *recordingObserver) RateLimited(_ context.Context, result ratelimit.Result) {
+func (o *recordingObserver) record(_ context.Context, result ratelimit.Result) {
 	o.results = append(o.results, result)
 }
 
@@ -85,7 +85,7 @@ func TestMiddlewareReturnsAnActionableErrorResultRatherThanATransportError(t *te
 
 	handler := &countingHandler{}
 	observer := &recordingObserver{}
-	wrapped := ratelimit.Middleware(limiter, writeClassifier, observer)(handler.handle)
+	wrapped := ratelimit.Middleware(limiter, writeClassifier, observer.record)(handler.handle)
 	ctx := resolvedContext(t, "principal-a")
 
 	if _, err := wrapped(ctx, "tools/call", callToolRequest("add_weigh_in")); err != nil {

@@ -72,7 +72,7 @@ func (s *Server) installMiddleware() {
 		s.principalMiddleware(),
 		s.loggingMiddleware(),
 		s.recoverMiddleware(),
-		ratelimit.Middleware(s.deps.Limiter, s.classifyTool, rateLimitObserver{}),
+		ratelimit.Middleware(s.deps.Limiter, s.classifyTool, rateLimitObserver),
 		s.policyMiddleware(),
 	)
 }
@@ -427,9 +427,7 @@ func (s *Server) classifyTool(tool string) ratelimit.Kind {
 
 // rateLimitObserver records a limiter refusal on the call record so the logging
 // middleware, which wraps the limiter, reports the right outcome.
-type rateLimitObserver struct{}
-
-func (rateLimitObserver) RateLimited(ctx context.Context, result ratelimit.Result) {
+func rateLimitObserver(ctx context.Context, result ratelimit.Result) {
 	record := recordFromContext(ctx)
 	if record == nil {
 		return
