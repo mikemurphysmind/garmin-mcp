@@ -290,19 +290,6 @@ func defaultRegion() protocol.ValidatedDomain {
 	return region
 }
 
-// Clone returns a copy that shares no slice backing array with the receiver, so
-// a caller can adjust one without observing the change in the other.
-func (c Config) Clone() Config {
-	out := c
-	out.TrustedProxyCIDRs = copyStrings(c.TrustedProxyCIDRs)
-	out.AllowedOrigins = copyStrings(c.AllowedOrigins)
-	out.OAuthClients = cloneClients(c.OAuthClients)
-	out.ToolAllowlist = copyStrings(c.ToolAllowlist)
-	out.ToolDenylist = copyStrings(c.ToolDenylist)
-	out.LoginAllowedEmails = copyStrings(c.LoginAllowedEmails)
-	return out
-}
-
 func copyStrings(in []string) []string {
 	if in == nil {
 		return nil

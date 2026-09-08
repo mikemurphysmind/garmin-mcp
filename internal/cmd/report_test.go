@@ -132,7 +132,7 @@ func TestDefaultStateDirectoryIsPerUser(t *testing.T) {
 // TestInlineTokenDocumentIsReadOnlyThroughTheOverride keeps the insecure
 // compatibility path explicit: the document is read only because the operator set the
 // inline setting, which is what turns the store's override on.
-func TestInlineTokenDocumentIsReadOnlyThroughTheOverride(t *testing.T) {
+func TestInlineTokenDocumentIsImported(t *testing.T) {
 	cfg := localConfig(t)
 	cfg.GarminTokens = config.NewSecret(`{"di_token":"synthetic-di-token",` +
 		`"di_refresh_token":"synthetic-refresh","di_client_id":"synthetic-client"}`)
@@ -143,9 +143,6 @@ func TestInlineTokenDocumentIsReadOnlyThroughTheOverride(t *testing.T) {
 	}
 	t.Cleanup(deps.close)
 
-	if !deps.files.AllowsInlineTokens() {
-		t.Error("the inline override is off, so the document would be refused")
-	}
 	if err := deps.importConfiguredTokens(t.Context()); err != nil {
 		t.Fatalf("importConfiguredTokens returned error: %v", err)
 	}

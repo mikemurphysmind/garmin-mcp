@@ -68,27 +68,6 @@ type OAuthClient struct {
 	SecretHash Secret
 }
 
-// clone returns a copy that shares no slice backing array with the receiver.
-func (c OAuthClient) clone() OAuthClient {
-	out := c
-	out.RedirectURIs = copyStrings(c.RedirectURIs)
-	out.Scopes = copyStrings(c.Scopes)
-	out.Resources = copyStrings(c.Resources)
-	return out
-}
-
-// cloneClients copies a whole registry.
-func cloneClients(in []OAuthClient) []OAuthClient {
-	if in == nil {
-		return nil
-	}
-	out := make([]OAuthClient, len(in))
-	for i, client := range in {
-		out[i] = client.clone()
-	}
-	return out
-}
-
 // validateRegistry checks the whole registry: that there is one, that it is
 // bounded, that no identifier repeats, and that every entry is usable.
 //

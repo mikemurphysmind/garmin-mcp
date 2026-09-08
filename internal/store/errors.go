@@ -50,11 +50,6 @@ var (
 	// garmin_tokens.json document. Detection is structural, never length-based.
 	ErrIncompatibleTokenFile = errors.New("store: not a 0.3.x token document")
 
-	// ErrInlineTokensRefused means inline token JSON was supplied while the
-	// insecure compatibility override was off. Inline tokens are refused by
-	// default and must stay refused in remote mode.
-	ErrInlineTokensRefused = errors.New("store: inline token JSON is refused")
-
 	// ErrCorruptRecord means an encrypted record could not be parsed or opened. It
 	// never quotes the record.
 	ErrCorruptRecord = errors.New("store: token record is unreadable")

@@ -45,12 +45,17 @@ to add one.
   principal is absent from the file bytes as well as the tokens.
 - Optimistic CAS on every rotating-token write, in process. `FileStore.Save`
   yields to a newer stored token set on conflict.
-- The local `garmin_tokens.json` 0.3.x import and export contract: structure-based
+- The local `garmin_tokens.json` 0.3.x **import** contract: structure-based
   detection, `0700`/`0600` modes, `~user` and symlink rejection across the full
-  ancestry, and atomic writes. There is no Windows side: the platform is not
+  ancestry, and atomic writes. There is no export side: nothing in the server
+  writes a 0.3.x document back out, so the export path was removed rather than
+  kept as an untaken branch. There is no Windows side: the platform is not
   supported, and `internal/securefile` compiles on unix only rather than shipping
   a weaker owner-only guarantee where it cannot enforce one.
-- Inline token JSON is refused unless explicitly enabled.
+- Inline token JSON is accepted only where it is reachable, which is the stdio
+  composition root. Remote mode refuses it by construction rather than by a
+  flag: it keeps token sets in the database and never opens the file store or
+  the import path at all.
 - The record **schema version moved from 1 to 2** when the wrapper's schema and
   version were bound into the AEAD as additional data. A schema-1 record now
   reports corruption instead of decoding, because its additional data no longer
@@ -111,7 +116,7 @@ login. Passwords and MFA codes never enter that registry.
 - Multi-replica configurations are rejected or clearly documented as unsupported
   until transactions, token rotation, cleanup locks, and cache invalidation use
   shared coordination.
-- Inline token JSON remains an explicitly insecure compatibility override and is
-  rejected in remote production mode.
+- Inline token JSON remains an explicitly insecure compatibility override,
+  documented as such, and is unreachable in remote production mode.
 - Deleting local tokens is unlinking, not revocation at Garmin. The documentation
   must state the difference.

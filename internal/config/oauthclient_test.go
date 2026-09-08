@@ -531,27 +531,3 @@ func TestStdioRejectsRemoteOnlySettings(t *testing.T) {
 		})
 	}
 }
-
-// TestCloneCopiesTheRegistry keeps the immutability promise: a caller that adjusts
-// its own copy must not reach into another's.
-func TestCloneCopiesTheRegistry(t *testing.T) {
-	t.Parallel()
-
-	cfg := remoteConfig()
-	cfg.AllowedOrigins = []string{testOrigin}
-
-	clone := cfg.Clone()
-	clone.OAuthClients[0].ID = "other"
-	clone.OAuthClients[0].RedirectURIs[0] = "https://other.example.test/cb"
-	clone.AllowedOrigins[0] = "https://other.example.test"
-
-	if cfg.OAuthClients[0].ID != testClientID {
-		t.Error("the clone shares the client registry with its source")
-	}
-	if cfg.OAuthClients[0].RedirectURIs[0] != testRedirectURI {
-		t.Error("the clone shares a redirect URI slice with its source")
-	}
-	if cfg.AllowedOrigins[0] != testOrigin {
-		t.Error("the clone shares the origin allowlist with its source")
-	}
-}

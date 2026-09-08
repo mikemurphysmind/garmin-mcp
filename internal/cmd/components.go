@@ -129,10 +129,9 @@ func openTokenStore(cfg config.Config, paths statePaths) (*store.FileStore, *tok
 	}
 
 	files, err := store.NewFileStore(store.Config{
-		Dir:                       paths.tokens,
-		Key:                       active,
-		RetiredKeys:               retired,
-		AllowInsecureInlineTokens: cfg.GarminTokens.IsSet(),
+		Dir:         paths.tokens,
+		Key:         active,
+		RetiredKeys: retired,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening the token store: %w", err)
@@ -183,7 +182,7 @@ func (d *dependencies) configuredTokens() (store.TokenSet, bool, error) {
 		}
 		return set, true, nil
 	case d.cfg.GarminTokens.IsSet():
-		set, err := store.ParseInlineTokenJSON(d.cfg.GarminTokens.Reveal(), true)
+		set, err := store.ParseInlineTokenJSON(d.cfg.GarminTokens.Reveal())
 		if err != nil {
 			return store.TokenSet{}, false, fmt.Errorf("reading the inline token document: %w", err)
 		}

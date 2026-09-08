@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -63,40 +62,6 @@ func TestDefaultReturnsIndependentValues(t *testing.T) {
 
 	if len(Default().ToolAllowlist) != 0 {
 		t.Error("Default() shares slice state with a previously returned value")
-	}
-}
-
-// TestCloneDoesNotShareSliceState walks every []string field on Config by
-// reflection, rather than naming a handful by hand, so a future field cannot
-// slip through Clone unnoticed the way LoginAllowedEmails once did.
-func TestCloneDoesNotShareSliceState(t *testing.T) {
-	t.Parallel()
-
-	stringSliceType := reflect.TypeFor[[]string]()
-	fields := reflect.VisibleFields(reflect.TypeFor[Config]())
-
-	var checked int
-	for _, field := range fields {
-		if field.Type != stringSliceType {
-			continue
-		}
-		checked++
-
-		original := Default()
-		originalVal := reflect.ValueOf(&original).Elem().FieldByIndex(field.Index)
-		originalVal.Set(reflect.ValueOf([]string{toolActivities}))
-
-		clone := original.Clone()
-		cloneVal := reflect.ValueOf(&clone).Elem().FieldByIndex(field.Index)
-		cloneVal.Index(0).SetString(mutatedValue)
-
-		if got := originalVal.Index(0).String(); got != toolActivities {
-			t.Errorf("Clone shares %s's backing array: original[0] = %q after mutating the clone", field.Name, got)
-		}
-	}
-
-	if checked == 0 {
-		t.Fatal("no []string field found on Config; the reflection walk is broken")
 	}
 }
 

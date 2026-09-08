@@ -281,30 +281,6 @@ func TestNewFileStoreRejectsAnUnusableConfiguration(t *testing.T) {
 	}
 }
 
-func TestAllowsInlineTokensReflectsTheConfiguration(t *testing.T) {
-	dir := tempDir(t)
-	key, err := cryptostore.LoadOrCreateKey(filepath.Join(dir, "keys"), 1)
-	if err != nil {
-		t.Fatalf("LoadOrCreateKey: %v", err)
-	}
-
-	secure, err := NewFileStore(Config{Dir: dir, Key: key})
-	if err != nil {
-		t.Fatalf("NewFileStore: %v", err)
-	}
-	if secure.AllowsInlineTokens() {
-		t.Fatal("inline token JSON must be off by default")
-	}
-
-	override, err := NewFileStore(Config{Dir: dir, Key: key, AllowInsecureInlineTokens: true})
-	if err != nil {
-		t.Fatalf("NewFileStore with the override: %v", err)
-	}
-	if !override.AllowsInlineTokens() {
-		t.Fatal("the explicit insecure override was not reported")
-	}
-}
-
 func TestOperationsRejectAnEmptyPrincipal(t *testing.T) {
 	store, _ := newTestStore(t)
 	ctx := t.Context()

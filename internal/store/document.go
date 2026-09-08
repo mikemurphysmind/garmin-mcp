@@ -53,19 +53,6 @@ func encodeRecordPayload(set TokenSet) []byte {
 	return encoded
 }
 
-// encodeLegacyDocument serializes set in exactly the 0.3.x shape: the three di_*
-// fields and nothing else, so an older client reads it unchanged.
-//
-// Source: Client.dumps in client.py (0.3.10).
-func encodeLegacyDocument(set TokenSet) []byte {
-	encoded, _ := json.Marshal(tokenDocument{
-		Token:        set.Token(),
-		RefreshToken: set.RefreshToken(),
-		ClientID:     set.ClientID(),
-	})
-	return encoded
-}
-
 // decodeTokenDocument parses raw into a TokenSet. The error names the source kind
 // and the length, never the content.
 func decodeTokenDocument(raw []byte, source tokenSource) (TokenSet, error) {

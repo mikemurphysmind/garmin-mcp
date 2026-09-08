@@ -107,68 +107,8 @@ func TestImportLegacyTokenFileErrorNeverQuotesTheDocument(t *testing.T) {
 	}
 }
 
-func TestExportLegacyTokenFileWritesThe03xFormat(t *testing.T) {
-	dir := tempDir(t)
-
-	path, err := ExportLegacyTokenFile(dir, newTestTokens())
-	if err != nil {
-		t.Fatalf("ExportLegacyTokenFile: %v", err)
-	}
-	if want := filepath.Join(dir, legacyTokenFileName); path != want {
-		t.Fatalf("export path = %q, want %q", path, want)
-	}
-
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read export: %v", err)
-	}
-	if !IsLegacyTokenDocument(raw) {
-		t.Fatalf("the export is not a 0.3.x document: %s", raw)
-	}
-	for _, field := range []string{`"di_token"`, `"di_refresh_token"`, `"di_client_id"`} {
-		if !strings.Contains(string(raw), field) {
-			t.Fatalf("the export is missing %s: %s", field, raw)
-		}
-	}
-
-	reimported, err := ImportLegacyTokenFile(path)
-	if err != nil {
-		t.Fatalf("re-import: %v", err)
-	}
-	if reimported.Token() != testToken || reimported.RefreshToken() != testRefreshToken {
-		t.Fatal("the export does not round-trip")
-	}
-}
-
-func TestLooksLikeInlineTokenJSONUsesStructure(t *testing.T) {
-	cases := map[string]bool{
-		legacyDocument():                    true,
-		"  " + legacyDocument():             true,
-		`[{"di_token":"a"}]`:                true,
-		"/home/user/.garminconnect":         false,
-		strings.Repeat("/long/path", 60):    false,
-		"":                                  false,
-		`C:\Users\user\AppData\tokens.json`: false,
-	}
-	for value, want := range cases {
-		if got := LooksLikeInlineTokenJSON(value); got != want {
-			t.Fatalf("LooksLikeInlineTokenJSON(%.20q) = %v, want %v", value, got, want)
-		}
-	}
-}
-
-func TestParseInlineTokenJSONIsRefusedUnlessExplicitlyAllowed(t *testing.T) {
-	_, err := ParseInlineTokenJSON(legacyDocument(), false)
-	if !errors.Is(err, ErrInlineTokensRefused) {
-		t.Fatalf("ParseInlineTokenJSON without the override: err = %v, want ErrInlineTokensRefused", err)
-	}
-	if strings.Contains(err.Error(), testRefreshToken) || strings.Contains(err.Error(), testToken) {
-		t.Fatalf("the refusal leaked the inline token material: %v", err)
-	}
-}
-
-func TestParseInlineTokenJSONAcceptsTheDocumentWhenAllowed(t *testing.T) {
-	set, err := ParseInlineTokenJSON(legacyDocument(), true)
+func TestParseInlineTokenJSONAcceptsA03xDocument(t *testing.T) {
+	set, err := ParseInlineTokenJSON(legacyDocument())
 	if err != nil {
 		t.Fatalf("ParseInlineTokenJSON: %v", err)
 	}
@@ -180,7 +120,7 @@ func TestParseInlineTokenJSONAcceptsTheDocumentWhenAllowed(t *testing.T) {
 func TestParseInlineTokenJSONErrorNeverQuotesTheValue(t *testing.T) {
 	broken := `{"di_token":"` + testToken + `","di_refresh_token":`
 
-	_, err := ParseInlineTokenJSON(broken, true)
+	_, err := ParseInlineTokenJSON(broken)
 	if err == nil {
 		t.Fatal("a truncated inline document must be refused")
 	}

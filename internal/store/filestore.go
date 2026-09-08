@@ -54,10 +54,6 @@ type Config struct {
 	// slice is the pre-rotation shape: every record must already be sealed under
 	// Key.
 	RetiredKeys []cryptostore.Key
-
-	// AllowInsecureInlineTokens enables the inline token JSON compatibility
-	// override. It is unsafe and must stay false in remote mode; see inline.go.
-	AllowInsecureInlineTokens bool
 }
 
 // FileStore is a local token store: one AEAD-encrypted file per principal.
@@ -73,11 +69,10 @@ type Config struct {
 //
 // A FileStore is safe for concurrent use and holds no package-level state.
 type FileStore struct {
-	root        string
-	records     string
-	crypt       keySet
-	allowInline bool
-	locks       *principalLocks
+	root    string
+	records string
+	crypt   keySet
+	locks   *principalLocks
 }
 
 // NewFileStore validates cfg, creates the store directories with owner-only
@@ -107,11 +102,10 @@ func NewFileStore(cfg Config) (*FileStore, error) {
 	}
 
 	return &FileStore{
-		root:        root,
-		records:     records,
-		crypt:       crypt,
-		allowInline: cfg.AllowInsecureInlineTokens,
-		locks:       newPrincipalLocks(),
+		root:    root,
+		records: records,
+		crypt:   crypt,
+		locks:   newPrincipalLocks(),
 	}, nil
 }
 
@@ -140,9 +134,6 @@ func checkKeyUsable(key cryptostore.Key) error {
 	}
 	return nil
 }
-
-// AllowsInlineTokens reports whether the insecure inline token override is on.
-func (s *FileStore) AllowsInlineTokens() bool { return s.allowInline }
 
 // Load returns the token set for principal and the record version that produced
 // it. It reports ErrNoTokens when no record exists, which is the signal to log in.

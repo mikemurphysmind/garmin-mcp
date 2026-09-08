@@ -184,14 +184,3 @@ func TestNewFileStoreRefusesASymlinkedDirectory(t *testing.T) {
 		t.Fatalf("NewFileStore with a symlinked dir: err = %v, want ErrInsecurePath", err)
 	}
 }
-
-func TestExportLegacyTokenFileIsOwnerOnly(t *testing.T) {
-	dir := tempDir(t)
-
-	path, err := ExportLegacyTokenFile(dir, newTestTokens())
-	if err != nil {
-		t.Fatalf("ExportLegacyTokenFile: %v", err)
-	}
-	assertOwnerOnly(t, path, 0o600)
-	assertOwnerOnly(t, dir, 0o700)
-}

@@ -15,40 +15,20 @@ import (
 //
 // Therefore:
 //
-//   - it is refused unless the caller passes allowInsecure explicitly, which comes
-//     from Config.AllowInsecureInlineTokens;
-//   - remote mode must never enable it;
+//   - remote mode never reaches this path: it keeps its token sets in the
+//     database, and only the stdio composition root imports a configured
+//     document;
 //   - no error built here ever contains the value. Only the source kind and the
 //     length are reported.
 //
 // Source: the 0.3.10 login() failure path, which logs source and length precisely
 // because the value may be the inline token JSON.
 
-// LooksLikeInlineTokenJSON reports whether value is inline JSON rather than a
-// filesystem path.
-//
-// The test is structural — a leading { or [ after trimming — not a length
-// threshold, because a long legitimate path would be misread as JSON and a short
-// JSON document as a path.
-//
-// Source: _looks_like_json in __init__.py (0.3.10).
-func LooksLikeInlineTokenJSON(value string) bool {
-	trimmed := strings.TrimSpace(value)
-	return strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")
-}
-
 // ParseInlineTokenJSON parses inline 0.3.x token JSON.
 //
-// It reports ErrInlineTokensRefused unless allowInsecure is true, and
-// ErrIncompatibleTokenFile when the value is not a 0.3.x document. No error names
-// the value.
-func ParseInlineTokenJSON(value string, allowInsecure bool) (TokenSet, error) {
-	if !allowInsecure {
-		return TokenSet{}, fmt.Errorf("store: inline token JSON is disabled "+
-			"(source=%s, %d bytes); mount an owner-only token file instead: %w",
-			sourceInline, len(value), ErrInlineTokensRefused)
-	}
-
+// It reports ErrIncompatibleTokenFile when the value is not a 0.3.x document. No
+// error names the value.
+func ParseInlineTokenJSON(value string) (TokenSet, error) {
 	raw := []byte(strings.TrimSpace(value))
 	if !IsLegacyTokenDocument(raw) {
 		return TokenSet{}, fmt.Errorf("store: inline value is not a 0.3.x token document "+
