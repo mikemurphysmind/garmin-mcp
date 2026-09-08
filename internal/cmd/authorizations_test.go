@@ -263,7 +263,7 @@ func TestConfiguredScopesAreTheUnionOfTheRegistry(t *testing.T) {
 		t.Fatalf("the two-client configuration does not validate: %v", err)
 	}
 
-	clients, err := newConfigClients(cfg)
+	clients, err := newConfigClients(cfg, nil)
 	if err != nil {
 		t.Fatalf("newConfigClients returned error: %v", err)
 	}
@@ -278,7 +278,7 @@ func TestDuplicateClientRegistrationsAreRefused(t *testing.T) {
 	cfg := remoteConfig(t)
 	cfg.OAuthClients = append(cfg.OAuthClients, cfg.OAuthClients[0])
 
-	if _, err := newConfigClients(cfg); err == nil {
+	if _, err := newConfigClients(cfg, nil); err == nil {
 		t.Fatal("newConfigClients accepted two registrations of one identifier")
 	}
 }
@@ -291,7 +291,7 @@ func TestAnInlineClientDigestIsAccepted(t *testing.T) {
 	cfg.OAuthClients[0].SecretHash = config.NewSecret(
 		"5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8")
 
-	if _, err := newConfigClients(cfg); err != nil {
+	if _, err := newConfigClients(cfg, nil); err != nil {
 		t.Errorf("newConfigClients(inline digest) = %v, want it accepted", err)
 	}
 }

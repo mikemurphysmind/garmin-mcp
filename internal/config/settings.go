@@ -18,37 +18,39 @@ const (
 // upper-cased with the prefix — the environment variable, so an operator never
 // has to translate between three vocabularies.
 const (
-	keyConfigFile             = "config"
-	keyTransport              = "transport"
-	keyBindAddress            = "bind-address"
-	keyPublicURL              = "public-url"
-	keyTrustedProxyCIDRs      = "trusted-proxy-cidrs"
-	keyAllowedOrigins         = "allowed-origins"
-	keySessionTimeout         = "session-timeout"
-	keyOAuthClients           = "oauth-clients"
-	keyAllowInsecureHTTP      = "allow-insecure-http"
-	keyTLSCertFile            = "tls-cert-file"
-	keyTLSKeyFile             = "tls-key-file"
-	keyDatabasePath           = "database-path"
-	keyStateDir               = "state-dir"
-	keyPrincipalID            = "principal-id"
-	keyMasterKey              = "master-key"
-	keyMasterKeyFile          = keyMasterKey + fileSuffix
-	keyGarminTokens           = "garmin-tokens"
-	keyGarminTokensFile       = keyGarminTokens + fileSuffix
-	keyRegion                 = "region"
-	keyEnableWriteTools       = "enable-write-tools"
-	keyEnableDestructiveTools = "enable-destructive-tools"
-	keyToolAllowlist          = "tool-allowlist"
-	keyToolDenylist           = "tool-denylist"
-	keyMaxRequestBytes        = "max-request-bytes"
-	keyMaxResponseBytes       = "max-response-bytes"
-	keyRequestTimeout         = "request-timeout"
-	keyReadRateLimit          = "read-rate-limit"
-	keyWriteRateLimit         = "write-rate-limit"
-	keySafetyDelay            = "safety-delay"
-	keyLogLevel               = "log-level"
-	keyLogFormat              = "log-format"
+	keyConfigFile                  = "config"
+	keyTransport                   = "transport"
+	keyBindAddress                 = "bind-address"
+	keyPublicURL                   = "public-url"
+	keyTrustedProxyCIDRs           = "trusted-proxy-cidrs"
+	keyAllowedOrigins              = "allowed-origins"
+	keySessionTimeout              = "session-timeout"
+	keyOAuthClients                = "oauth-clients"
+	keyOAuthAllowRedirectWildcards = "oauth-allow-redirect-wildcards"
+	keyAllowInsecureHTTP           = "allow-insecure-http"
+	keyTLSCertFile                 = "tls-cert-file"
+	keyTLSKeyFile                  = "tls-key-file"
+	keyDatabasePath                = "database-path"
+	keyStateDir                    = "state-dir"
+	keyPrincipalID                 = "principal-id"
+	keyMasterKey                   = "master-key"
+	keyMasterKeyFile               = keyMasterKey + fileSuffix
+	keyGarminTokens                = "garmin-tokens"
+	keyGarminTokensFile            = keyGarminTokens + fileSuffix
+	keyRegion                      = "region"
+	keyLoginAllowedEmails          = "login-allowed-emails"
+	keyEnableWriteTools            = "enable-write-tools"
+	keyEnableDestructiveTools      = "enable-destructive-tools"
+	keyToolAllowlist               = "tool-allowlist"
+	keyToolDenylist                = "tool-denylist"
+	keyMaxRequestBytes             = "max-request-bytes"
+	keyMaxResponseBytes            = "max-response-bytes"
+	keyRequestTimeout              = "request-timeout"
+	keyReadRateLimit               = "read-rate-limit"
+	keyWriteRateLimit              = "write-rate-limit"
+	keySafetyDelay                 = "safety-delay"
+	keyLogLevel                    = "log-level"
+	keyLogFormat                   = "log-format"
 )
 
 // The keys inside one entry of the OAuth client registry. They are sub-keys of
@@ -141,6 +143,12 @@ var settingTable = [...]setting{
 		usage: "operator-registered OAuth clients; a configuration-file list or a JSON document",
 	},
 	{
+		key: keyOAuthAllowRedirectWildcards, flag: keyOAuthAllowRedirectWildcards,
+		kind: kindBool, def: false,
+		usage: "UNSAFE: admit a trailing-path wildcard redirect URI, for example " +
+			"https://host/cb/*; prefix matching is weaker than exact matching",
+	},
+	{
 		key: keyAllowInsecureHTTP, flag: keyAllowInsecureHTTP, kind: kindBool, def: false,
 		usage: "development override permitting a cleartext non-loopback origin",
 	},
@@ -183,6 +191,12 @@ var settingTable = [...]setting{
 	{
 		key: keyRegion, flag: keyRegion, kind: kindString, def: "",
 		usage: "Garmin account region: garmin.com or garmin.cn",
+	},
+	{
+		key: keyLoginAllowedEmails, kind: kindStringSlice, def: []string{},
+		usage: "restrict the remote browser login to these Garmin account addresses; " +
+			"empty admits any account; configuration file or environment only, deliberately " +
+			"no flag, so an address never reaches the process command line",
 	},
 	{
 		key: keyEnableWriteTools, flag: keyEnableWriteTools, kind: kindBool, def: false,

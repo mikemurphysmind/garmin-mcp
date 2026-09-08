@@ -115,9 +115,11 @@ public URL and let it discover the rest:
 ```
 
 The client must be registered with the deployment first — see below — and its
-redirect URI must match that registration byte for byte. The first connection
-sends the user through a browser flow that logs in to Garmin and asks for
-consent, then returns an access token.
+redirect URI must match that registration byte for byte, unless the operator has
+opted into a trailing-path wildcard (see
+[docs/configuration.md](docs/configuration.md#redirect-wildcards)). The first
+connection sends the user through a browser flow that logs in to Garmin and asks
+for consent, then returns an access token.
 
 ## Remote deployment in brief
 

@@ -102,6 +102,19 @@ func startRemoteServerConfigured(
 	t *testing.T, proxyURL string, seed func(dir, origin string),
 ) remoteServer {
 	t.Helper()
+	return startRemoteServerCustomized(t, proxyURL, remoteConfigOptions{}, seed)
+}
+
+// startRemoteServerCustomized is startRemoteServerConfigured with the
+// configuration document itself under the caller's control too: a non-default
+// redirect URI list and extra top-level settings, for a test that must
+// register a redirect pattern together with its acknowledgement, or a login
+// allowlist. Everything else — the certificate, the master key, the
+// readiness wait — is identical.
+func startRemoteServerCustomized(
+	t *testing.T, proxyURL string, opts remoteConfigOptions, seed func(dir, origin string),
+) remoteServer {
+	t.Helper()
 
 	dir := stateDir(t)
 	port := freePort(t)
@@ -109,7 +122,7 @@ func startRemoteServerConfigured(
 	origin := fmt.Sprintf("https://127.0.0.1:%d", port)
 
 	writeMasterKey(t, dir)
-	configPath := writeRemoteConfig(t, dir, port, origin)
+	configPath := writeRemoteConfigWith(t, dir, port, origin, opts)
 	if seed != nil {
 		seed(dir, origin)
 	}
@@ -123,6 +136,60 @@ func startRemoteServerConfigured(
 	server.stop = launchRemote(t, dir, configPath, proxyURL)
 	waitForRemote(t, server)
 	return server
+}
+
+// startRemoteServerExpectingFailure starts the binary against a configuration
+// this deployment must refuse before it ever binds a listener — such as a
+// registered redirect pattern with no oauth-allow-redirect-wildcards
+// acknowledgement (internal/cmd/clientstore.go) — and waits for it to exit.
+// It returns the process's exit error, or nil if the process exited zero.
+//
+// Every other deployment helper in this file waits for the listener to
+// answer; this one exists for the opposite case, so it never calls
+// waitForRemote and never registers the stop-on-cleanup wiring launchRemote
+// provides for a deployment that is expected to keep running.
+func startRemoteServerExpectingFailure(t *testing.T, opts remoteConfigOptions) error {
+	t.Helper()
+
+	dir := stateDir(t)
+	port := freePort(t)
+	origin := fmt.Sprintf("https://127.0.0.1:%d", port)
+	writeTLSMaterial(t, dir)
+	writeMasterKey(t, dir)
+	configPath := writeRemoteConfigWith(t, dir, port, origin, opts)
+
+	bin := buildBinary(t)
+	logPath := filepath.Join(dir, "server.log")
+	logFile, err := os.Create(logPath)
+	if err != nil {
+		t.Fatalf("create the server log: %v", err)
+	}
+	defer func() { _ = logFile.Close() }()
+
+	cmd := offlineCommandWithProxy(bin, "", "serve", "--config", configPath)
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start the server: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case exitErr := <-done:
+		if exitErr != nil {
+			if contents, readErr := os.ReadFile(logPath); readErr == nil {
+				t.Logf("server log:\n%s", contents)
+			}
+		}
+		return exitErr
+	case <-time.After(remoteReadyTimeout):
+		_ = cmd.Process.Kill()
+		<-done
+		t.Fatal("the deployment did not exit within the timeout; want a prompt start-up refusal")
+		return nil
+	}
 }
 
 // launchRemote starts the server process and returns a function that stops
@@ -262,12 +329,34 @@ func writeMasterKey(t *testing.T, dir string) {
 	writeFile(t, filepath.Join(dir, "key-v1.json"), document)
 }
 
-// writeRemoteConfig writes the deployment configuration and returns its path.
-func writeRemoteConfig(t *testing.T, dir string, port int, origin string) string {
+// remoteConfigOptions customizes what writeRemoteConfig writes beyond its
+// defaults: extra top-level settings and the preregistered client's redirect
+// URI list. The zero value reproduces writeRemoteConfig's own fixed shape.
+type remoteConfigOptions struct {
+	// redirectURIs replaces the single hardcoded callback when non-empty.
+	redirectURIs []string
+	// extraLines are appended as further top-level configuration keys, such as
+	// an operator acknowledgement or a login allowlist the zero options never set.
+	extraLines []string
+}
+
+// writeRemoteConfigWith writes the deployment configuration and returns its
+// path, with the redirect URI list and extra top-level settings under the
+// caller's control, for a test that must register a redirect pattern, its
+// acknowledgement, or a login allowlist. The zero remoteConfigOptions writes
+// the default single-callback, no-extra-lines configuration.
+func writeRemoteConfigWith(
+	t *testing.T, dir string, port int, origin string, opts remoteConfigOptions,
+) string {
 	t.Helper()
 
 	resource := origin + "/mcp"
-	document := strings.Join([]string{
+	redirectURIs := opts.redirectURIs
+	if len(redirectURIs) == 0 {
+		redirectURIs = []string{"http://127.0.0.1:33418/callback"}
+	}
+
+	lines := []string{
 		"transport: streamable-http",
 		fmt.Sprintf("bind-address: 127.0.0.1:%d", port),
 		"public-url: " + resource,
@@ -276,21 +365,28 @@ func writeRemoteConfig(t *testing.T, dir string, port int, origin string) string
 		"state-dir: " + dir,
 		"master-key-file: " + filepath.Join(dir, "key-v1.json"),
 		"database-path: " + filepath.Join(dir, "garmin.db"),
+	}
+	lines = append(lines, opts.extraLines...)
+	lines = append(lines,
 		"oauth-clients:",
-		"  - id: " + remoteClientID,
-		"    name: " + remoteClientName,
+		"  - id: "+remoteClientID,
+		"    name: "+remoteClientName,
 		"    redirect-uris:",
-		"      - http://127.0.0.1:33418/callback",
+	)
+	for _, uri := range redirectURIs {
+		lines = append(lines, "      - "+uri)
+	}
+	lines = append(lines,
 		"    scopes:",
-		"      - " + remoteScope,
+		"      - "+remoteScope,
 		"    resources:",
-		"      - " + resource,
+		"      - "+resource,
 		"    public: true",
 		"",
-	}, "\n")
+	)
 
 	path := filepath.Join(dir, "config.yaml")
-	writeFile(t, path, []byte(document))
+	writeFile(t, path, []byte(strings.Join(lines, "\n")))
 	return path
 }
 

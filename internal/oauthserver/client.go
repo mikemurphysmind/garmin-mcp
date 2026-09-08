@@ -68,8 +68,14 @@ type ClientSpec struct {
 	// Name is the human-readable name shown on the non-binding disclosure page.
 	Name string
 	// RedirectURIs are the exact redirect URIs this client may use. At least one is
-	// required, and matching against them is byte-exact.
+	// required. Matching is byte-exact unless AllowWildcardRedirects admits one
+	// trailing-path [RedirectPattern] per client.
 	RedirectURIs []string
+	// AllowWildcardRedirects admits a [RedirectPattern] in RedirectURIs. It is
+	// the operator's acknowledgement that prefix matching is weaker than exact
+	// matching; without it a registration containing "*" is refused. See
+	// docs/threat-model.md for the residual risk.
+	AllowWildcardRedirects bool
 	// Scopes is the space-delimited maximum scope set this client may ever be
 	// granted. A request for more is refused before any user sees a page.
 	Scopes string
@@ -89,13 +95,14 @@ type ClientSpec struct {
 // therefore every Client in the system has already passed registration
 // validation. The zero Client is invalid.
 type Client struct {
-	id           string
-	name         string
-	redirectURIs []RedirectURI
-	scopes       ScopeSet
-	resources    []Resource
-	authMethod   AuthMethod
-	secretHash   Lookup
+	id               string
+	name             string
+	redirectURIs     []RedirectURI
+	redirectPatterns []RedirectPattern
+	scopes           ScopeSet
+	resources        []Resource
+	authMethod       AuthMethod
+	secretHash       Lookup
 }
 
 // NewClient validates spec and returns the client it describes.
@@ -103,12 +110,14 @@ type Client struct {
 // Beyond the field-level checks, two rules are structural: a confidential client
 // must carry a secret digest and a public client must not, and every redirect URI
 // and resource must pass the full [ParseRedirectURI] and [ParseResource] rules, so
-// an operator cannot register a wildcard, a plaintext target or a fragment.
+// an operator cannot register a plaintext target or a fragment. A redirect URI
+// containing "*" is refused unless spec.AllowWildcardRedirects is set, in which
+// case exactly one trailing-path [RedirectPattern] per client is admitted.
 func NewClient(spec ClientSpec) (Client, error) {
 	if err := validateClientIdentity(spec); err != nil {
 		return Client{}, err
 	}
-	redirects, err := parseClientRedirectURIs(spec.RedirectURIs)
+	redirects, err := parseClientRedirectURIs(spec.RedirectURIs, spec.AllowWildcardRedirects)
 	if err != nil {
 		return Client{}, err
 	}
@@ -128,13 +137,14 @@ func NewClient(spec ClientSpec) (Client, error) {
 		return Client{}, err
 	}
 	return Client{
-		id:           spec.ID,
-		name:         spec.Name,
-		redirectURIs: redirects,
-		scopes:       scopes,
-		resources:    resources,
-		authMethod:   AuthMethod(spec.TokenEndpointAuthMethod),
-		secretHash:   secretHash,
+		id:               spec.ID,
+		name:             spec.Name,
+		redirectURIs:     redirects.exact,
+		redirectPatterns: redirects.patterns,
+		scopes:           scopes,
+		resources:        resources,
+		authMethod:       AuthMethod(spec.TokenEndpointAuthMethod),
+		secretHash:       secretHash,
 	}, nil
 }
 
@@ -182,26 +192,75 @@ func isDisallowedIDRune(r rune) bool {
 	return unicode.IsControl(r) || unicode.IsSpace(r) || r == unicode.ReplacementChar
 }
 
-func parseClientRedirectURIs(raw []string) ([]RedirectURI, error) {
+// registeredRedirects is the split registration: byte-exact URIs and, when the
+// operator acknowledged the weaker rule, trailing-path patterns.
+type registeredRedirects struct {
+	exact    []RedirectURI
+	patterns []RedirectPattern
+}
+
+func parseClientRedirectURIs(raw []string, allowWildcards bool) (registeredRedirects, error) {
 	if len(raw) == 0 {
-		return nil, fmt.Errorf("client registers no redirect URI: %w", ErrInvalidClient)
+		return registeredRedirects{}, fmt.Errorf(
+			"client registers no redirect URI: %w", ErrInvalidClient)
 	}
 	if len(raw) > MaxRedirectURIsPerClient {
-		return nil, fmt.Errorf("client registers %d redirect URIs, the limit is %d: %w",
+		return registeredRedirects{}, fmt.Errorf(
+			"client registers %d redirect URIs, the limit is %d: %w",
 			len(raw), MaxRedirectURIsPerClient, ErrInvalidClient)
 	}
-	parsed := make([]RedirectURI, 0, len(raw))
+
+	var out registeredRedirects
 	for _, candidate := range raw {
-		uri, err := ParseRedirectURI(candidate)
-		if err != nil {
-			return nil, err
+		if IsRedirectPattern(candidate) {
+			if err := out.addPattern(candidate, allowWildcards); err != nil {
+				return registeredRedirects{}, err
+			}
+			continue
 		}
-		if slices.ContainsFunc(parsed, uri.Equal) {
-			return nil, fmt.Errorf("client registers a duplicate redirect URI: %w", ErrInvalidClient)
+		if err := out.addExact(candidate); err != nil {
+			return registeredRedirects{}, err
 		}
-		parsed = append(parsed, uri)
 	}
-	return parsed, nil
+	return out, nil
+}
+
+// addExact appends a byte-exact registration, refusing a duplicate. The parse
+// failure is wrapped in ErrInvalidClient as well as ErrInvalidRedirectURI, so a
+// caller can branch on either: the registration is invalid regardless of which
+// rule the candidate broke.
+func (r *registeredRedirects) addExact(candidate string) error {
+	uri, err := ParseRedirectURI(candidate)
+	if err != nil {
+		return fmt.Errorf("client registers an unusable redirect URI: %w: %w", ErrInvalidClient, err)
+	}
+	if slices.ContainsFunc(r.exact, uri.Equal) {
+		return fmt.Errorf("client registers a duplicate redirect URI: %w", ErrInvalidClient)
+	}
+	r.exact = append(r.exact, uri)
+	return nil
+}
+
+// addPattern appends a trailing-path pattern, refusing it outright unless the
+// operator acknowledged the weaker matching rule. The parse failure is wrapped in
+// ErrInvalidClient as well as ErrInvalidRedirectURI, because from a caller's
+// point of view an unusable pattern is an invalid registration.
+func (r *registeredRedirects) addPattern(candidate string, allowWildcards bool) error {
+	if !allowWildcards {
+		return fmt.Errorf(
+			"client registers a wildcard redirect URI without the acknowledgement setting: %w",
+			ErrInvalidClient)
+	}
+	pattern, err := ParseRedirectPattern(candidate)
+	if err != nil {
+		return fmt.Errorf("client registers an unusable redirect pattern: %w: %w",
+			ErrInvalidClient, err)
+	}
+	if slices.ContainsFunc(r.patterns, pattern.Equal) {
+		return fmt.Errorf("client registers a duplicate redirect pattern: %w", ErrInvalidClient)
+	}
+	r.patterns = append(r.patterns, pattern)
+	return nil
 }
 
 func parseClientResources(raw []string) ([]Resource, error) {
@@ -262,6 +321,10 @@ func (c Client) IsPublic() bool { return c.authMethod == AuthMethodNone }
 // RedirectURIs returns a copy of the registered redirect URIs.
 func (c Client) RedirectURIs() []RedirectURI { return slices.Clone(c.redirectURIs) }
 
+// RedirectPatterns returns a copy of the registered trailing-path patterns. It is
+// empty unless the operator set the wildcard acknowledgement.
+func (c Client) RedirectPatterns() []RedirectPattern { return slices.Clone(c.redirectPatterns) }
+
 // MaxScopes returns the widest scope set this client may ever be granted.
 func (c Client) MaxScopes() ScopeSet { return c.scopes }
 
@@ -274,6 +337,12 @@ func (c Client) Resources() []Resource { return slices.Clone(c.resources) }
 // unregistered both return ErrRedirectURINotRegistered, because the caller must
 // treat them identically: in neither case may an error be delivered by
 // redirecting to it.
+//
+// Matching tries the registered exact URIs first, byte-exact. Failing that, it
+// tries the client's registered trailing-path patterns, if any. On a pattern
+// match the return value is the concrete presented URI, not the pattern: a code,
+// consent row or token binds to that exact redirect, so a previously unseen
+// concrete URI under an already-approved pattern still needs fresh consent.
 func (c Client) MatchRedirectURI(presented string) (RedirectURI, error) {
 	candidate, err := ParseRedirectURI(presented)
 	if err != nil {
@@ -283,6 +352,14 @@ func (c Client) MatchRedirectURI(presented string) (RedirectURI, error) {
 	for _, registered := range c.redirectURIs {
 		if registered.Equal(candidate) {
 			return registered, nil
+		}
+	}
+	// A pattern admits the concrete presented URI, which is what is returned: the
+	// code, the consent row and the token stay bound to an exact redirect, so a
+	// previously unseen concrete URI still needs fresh consent.
+	for _, pattern := range c.redirectPatterns {
+		if pattern.Matches(candidate) {
+			return candidate, nil
 		}
 	}
 	return RedirectURI{}, fmt.Errorf("client %q has no such registered redirect URI: %w",
@@ -322,6 +399,7 @@ func (c Client) String() string {
 	return "oauthserver.Client{id:" + c.id +
 		" authMethod:" + string(c.authMethod) +
 		" redirectURIs:" + strconv.Itoa(len(c.redirectURIs)) +
+		" redirectPatterns:" + strconv.Itoa(len(c.redirectPatterns)) +
 		" secret:" + presence(!c.secretHash.IsZero()) + "}"
 }
 

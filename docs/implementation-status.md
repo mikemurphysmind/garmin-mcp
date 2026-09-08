@@ -75,6 +75,69 @@ re-measured on 2026-09-01, when the post-pin tools landed.
 Every package is at or above the 80% floor `AGENTS.md`'s "Testing" section
 states as universal, enforced by `ci.yaml` in both directions.
 
+## 2026-09-08: redirect wildcards and the login allowlist landed
+
+Two operator-facing settings, both default off: `oauth-allow-redirect-wildcards`
+admits one trailing-path wildcard redirect URI per OAuth client entry, and
+`login-allowed-emails` restricts which Garmin account addresses may complete the
+remote browser login. Neither changes a deployment that does not set it. ADR
+0009 records the decision.
+
+The wildcard grammar and matching live in
+`internal/oauthserver/redirectpattern.go` (`ParseRedirectPattern`, `Matches`,
+`IsRedirectPattern`), pinned by
+`TestParseRedirectPatternAcceptsATrailingPathWildcard`,
+`TestParseRedirectPatternRefusesEveryOtherWildcardShape`,
+`TestRedirectPatternMatchesANormalizedRemainder`, and
+`TestRedirectPatternRefusesEveryWideningRemainder`. `internal/oauthserver/client.go`
+wires `ClientSpec.AllowWildcardRedirects` into `NewClient`, keeping exact URIs and
+patterns in separate fields and one shared registration cap, pinned by
+`TestMatchRedirectURIReturnsTheConcretePresentedURI`,
+`TestMatchRedirectURIRefusesAValueNoPatternAdmits`, and
+`TestNewClientCountsExactAndPatternRedirectsAgainstOneCap`. `internal/config`
+applies the coarse gate (`OAuthAllowRedirectWildcards`,
+`OAuthClient.checkRedirectURI`, `isTrailingPathWildcard`), pinned by
+`TestRedirectWildcardAcknowledgement` (`internal/config/oauthclient_test.go`),
+`TestConsentIsNotInheritedAcrossOnePattern`
+(`internal/oauthserver/complete_test.go`), the `internal/cmd/clientstore_test.go`
+warning tests (`TestConfigClientsAcceptAPatternWithTheAcknowledgementAndWarn`,
+`TestConfigClientsWarnOncePerPattern`), and
+`TestRemoteLoginServerCarriesTheConfiguredAllowlist`
+(`internal/cmd/remote_test.go`).
+`TestOAuthAllowRedirectWildcardsDefaultsToFalse` and
+`TestOAuthAllowRedirectWildcardsReadsFromTheEnvironment` pin loading the
+setting, not the gate itself. The composition root
+(`internal/cmd/clientstore.go`) logs one start-up warning per registered pattern
+(`warnWildcardRedirects`). End to end: `e2e/oauthflow_test.go`'s
+`TestAPatternFailsStartUpWithoutTheAcknowledgement`,
+`TestAPatternStartsUpWithTheAcknowledgement`, and
+`TestAuthorizationSucceedsThroughARedirectPattern` drive the real binary and the
+real `/token` endpoint.
+
+The login allowlist lives in `internal/loginweb/allowlist.go`
+(`EmailAllowlist`, `NewEmailAllowlist`, `Permits`, `IsOpen`), pinned by
+`TestAnEmptyEmailAllowlistPermitsEveryAddress`,
+`TestEmailAllowlistPermitsOnlyListedAddressesAndFoldsCase`,
+`TestNewEmailAllowlistRefusesAMalformedEntry`, and the two leak tests
+`TestEmailAllowlistNeverRendersAnAddress` /
+`...EvenWithMethodsStripped`. `internal/loginweb/remotehandlers.go`'s
+`handleCredentialSubmit` checks the allowlist after the attempt-budget accept and
+before `authenticator.Login`, so a refusal costs zero Garmin requests and still
+renders `msgLoginRejected` — the same message a Garmin-rejected credential
+produces. `internal/config`'s `LoginAllowedEmails` carries the matching lexical
+validation (`validateLoginAllowedEmails`, `checkAllowedEmailEntry`) and redacted
+output (`loginAllowedEmailsLen`, never the addresses), pinned by
+`TestValidateRefusesAMalformedAllowedEmail`,
+`TestValidateRefusesADuplicateAllowedEmail`,
+`TestValidationErrorsNeverCarryAnAllowlistedAddress`, and
+`TestRedactedConfigCountsAllowedEmailsWithoutRenderingThem`. End to end:
+`e2e/loginform_test.go`'s `TestARefusedAddressNeverLeavesTheProcess` proves the
+refusal over the real remote login flow.
+
+Both features are documented in `docs/configuration.md`, `docs/operations.md`,
+and `docs/threat-model.md`, including the residual risk of the wildcard and the
+fact that the allowlist is not a kill switch for an existing principal.
+
 ## 2026-09-01: reconciled against upstream `main`
 
 Upstream `Taxuspt/garmin_mcp` had moved 17 commits past the pinned commit, to

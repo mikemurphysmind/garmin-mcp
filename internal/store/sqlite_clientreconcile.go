@@ -39,8 +39,11 @@ type ClientReconciliation struct {
 	// so a caller must escape it before rendering. Required.
 	Name string
 
-	// RedirectURIs are the exact URIs this client may be redirected to, in the
-	// order configured. They replace whatever the row held. Required.
+	// RedirectURIs are the URIs this client may be redirected to, in the order
+	// configured. They replace whatever the row held. Required. An entry may be
+	// a registered trailing-path pattern string; this store stores and replaces
+	// it like any other entry but never matches against it, so a wildcard entry
+	// here is inert until internal/oauthserver's Client.MatchRedirectURI reads it.
 	RedirectURIs []string
 
 	// IsPublic reports whether the client authenticates with no secret, exactly as

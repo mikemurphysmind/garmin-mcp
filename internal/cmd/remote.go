@@ -80,7 +80,14 @@ func newRemoteDeployment(
 		return nil, fmt.Errorf("%w: inline master key material is not supported; "+
 			"supply the key through master-key-file", ErrUnsupportedKeyMaterial)
 	}
-	clients, err := newConfigClients(cfg)
+	// The client registry is built before the rest of the dependency graph, so its
+	// start-up warnings need their own logger rather than deps.events, which does
+	// not exist yet.
+	_, events, err := newLoggers(cfg, w.logs())
+	if err != nil {
+		return nil, err
+	}
+	clients, err := newConfigClients(cfg, events)
 	if err != nil {
 		return nil, err
 	}
@@ -314,9 +321,17 @@ func newRemoteLoginServer(
 		return nil, err
 	}
 
+	// A second parse of an already-validated list: defence in depth, so this
+	// function is never reachable with a list that never passed config.Validate.
+	allowedEmails, err := loginweb.NewEmailAllowlist(deps.cfg.LoginAllowedEmails)
+	if err != nil {
+		return nil, fmt.Errorf("building the login allowlist: %w", err)
+	}
+
 	login, err := loginweb.NewRemote(loginweb.RemoteConfig{
 		Authorizations: grants,
 		Authenticator:  logins,
+		AllowedEmails:  allowedEmails,
 		Logger:         deps.events,
 	})
 	if err != nil {

@@ -151,8 +151,11 @@ func (s *RemoteServer) handleCredentialForm(w http.ResponseWriter, r *http.Reque
 // The order of the checks is the security property: the transaction cookie first, so
 // an unsolicited request is refused before anything is parsed; then the bounded
 // body; then the form token, the deadline, the state and the attempt budget, all
-// inside one accept call that also rotates the token; then the field bounds; and
-// only then Garmin. The credentials are dropped the moment the call returns.
+// inside one accept call that also rotates the token; then the field bounds; then
+// the email allowlist; and only then Garmin. Moving the allowlist check below the
+// Login call would spend a request to Garmin on every stranger it is meant to turn
+// away before one is made. The credentials are dropped the moment the call returns,
+// or the moment the allowlist refuses.
 func (s *RemoteServer) handleCredentialSubmit(w http.ResponseWriter, r *http.Request) {
 	session, err := s.session(r)
 	if err != nil {
@@ -172,6 +175,17 @@ func (s *RemoteServer) handleCredentialSubmit(w http.ResponseWriter, r *http.Req
 	password := r.PostFormValue(fieldPassword)
 	if len(email) > MaxEmailLen || len(password) > MaxPasswordLen {
 		s.retry(w, r, session, pageCredentials, msgFieldTooLong)
+		return
+	}
+	// The allowlist is consulted before Garmin, so a stranger costs no request to
+	// the upstream service. The rendered message is the same one a rejected
+	// credential produces: a distinct message would tell an unauthenticated
+	// caller whether an address is a user of this deployment. The distinction is
+	// recorded here instead, and the record names no address.
+	if !s.allowedEmails.Permits(email) {
+		dropCredentials(&email, &password)
+		s.log(r.Context(), "the submitted account is not on the login allowlist")
+		s.retry(w, r, session, pageCredentials, msgLoginRejected)
 		return
 	}
 

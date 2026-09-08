@@ -77,7 +77,17 @@ func TestNoCredentialSettingExists(t *testing.T) {
 
 	forbidden := []string{"password", "passwd", "mfa", "otp", "totp", "credential", "email", "username"}
 
+	// keyLoginAllowedEmails is exempted by exact equality, not by dropping
+	// "email" from forbidden: it carries an allowlist of account addresses, not
+	// a credential, is never a secret input, and TestRedactedConfigCountsAllowedEmailsWithoutRenderingThem
+	// proves no address value is ever rendered. A new email-shaped setting must
+	// still fail this guard.
+	const safeEmailSetting = keyLoginAllowedEmails
+
 	for _, s := range settings() {
+		if s.key == safeEmailSetting {
+			continue
+		}
 		for _, bad := range forbidden {
 			if strings.Contains(s.key, bad) {
 				t.Errorf("setting %q contains %q: credentials must never be configurable", s.key, bad)
@@ -131,6 +141,62 @@ func TestRegisterFlagsIsIdempotentAcrossFlagSets(t *testing.T) {
 	if got != string(TransportStdio) {
 		t.Errorf("second flag set observed %q: the two share state", got)
 	}
+}
+
+func TestOAuthAllowRedirectWildcardsDefaultsToFalse(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := Load(LoadOptions{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.OAuthAllowRedirectWildcards {
+		t.Fatal("the redirect wildcard acknowledgement defaults to true, want false")
+	}
+}
+
+func TestOAuthAllowRedirectWildcardsReadsFromTheEnvironment(t *testing.T) {
+	t.Setenv("GARMIN_MCP_OAUTH_ALLOW_REDIRECT_WILDCARDS", "true")
+
+	cfg := loadUnvalidated(t)
+	if !cfg.OAuthAllowRedirectWildcards {
+		t.Fatal("the environment variable did not set the acknowledgement")
+	}
+}
+
+func TestLoginAllowedEmailsDefaultsToEmpty(t *testing.T) {
+	cfg, err := Load(LoadOptions{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(cfg.LoginAllowedEmails) != 0 {
+		t.Fatalf("LoginAllowedEmails = %d entries, want 0", len(cfg.LoginAllowedEmails))
+	}
+}
+
+func TestLoginAllowedEmailsReadsAList(t *testing.T) {
+	t.Setenv("GARMIN_MCP_LOGIN_ALLOWED_EMAILS", "a@example.com,b@example.com")
+
+	cfg := loadUnvalidated(t)
+	if len(cfg.LoginAllowedEmails) != 2 {
+		t.Fatalf("LoginAllowedEmails has %d entries, want two", len(cfg.LoginAllowedEmails))
+	}
+}
+
+// loadUnvalidated reads settings the same way Load does, without running
+// Validate, so a setting's environment binding can be pinned independently of
+// the transport it is only applicable under.
+func loadUnvalidated(t *testing.T) Config {
+	t.Helper()
+	store, err := newStore(LoadOptions{})
+	if err != nil {
+		t.Fatalf("newStore: %v", err)
+	}
+	cfg, err := fromStore(store)
+	if err != nil {
+		t.Fatalf("fromStore: %v", err)
+	}
+	return cfg
 }
 
 func TestSettingsHaveUniqueKeysAndFlags(t *testing.T) {

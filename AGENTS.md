@@ -43,7 +43,7 @@ date.
 | `cmd/garmin-mcp/main.go` | Thin `main`: passes the ldflags-injected `version` and `commit` into `cmd.Execute` and calls `os.Exit` with the returned code | n/a |
 | `cmd/notices/main.go` | Thin `main` for the notices generator: flags, then `notices.Generate`. A maintenance tool, never linked into `garmin-mcp` | n/a |
 | `internal/cmd` | Cobra tree and the composition root. `serve` (stdio and streamable-http), `auth`, `doctor`, `version`, `tools list` and `migrate` all do real work; no command returns a not-implemented sentinel | 81.9% |
-| `internal/config` | `Config`, deterministic four-layer precedence, `_FILE` secret variants, full lexical validation, redacted output, and the operator OAuth client registry | 90.8% |
+| `internal/config` | `Config`, deterministic four-layer precedence, `_FILE` secret variants, full lexical validation, redacted output, the operator OAuth client registry, the coarse redirect-wildcard gate, and the login allowlist's lexical validation | 90.8% |
 | `internal/garmin/protocol` | Garmin host/path/endpoint-label constants, client identities, DI client-ID candidates, the login response classifier (JSON and widget HTML), the rejected-OTP outcome, and the widget MFA variable parse. No I/O | 96.6% |
 | `internal/garmin/auth` | Login state machine, strategy fallback, bounded MFA transaction registry with a single completion lease, DI ticket exchange, session validation, explicit widget MFA code delivery, refresh with per-principal collapsing and CAS, the shared `TokenGate`, the request-time host guard, unverified-JWT `exp` parsing | 65.9% untagged, 88.3% with `-tags=fakegarmin` |
 | `internal/garmin/client` | The authenticated request layer: bounded wire and decompressed sizes, page and page-start caps, one bounded post-`401` retry that never replays a `POST` or `PATCH`, typed errors, and the exact-integer accessor an identifier is compared through | 94.3% |
@@ -53,14 +53,14 @@ date.
 | `internal/tools` | 144 registered tools — 100 read-only, 35 write, 9 destructive — the whole pinned manifest bar one documented refusal, with contracts snapshot-tested against `compat/tools.json` | 85.8% |
 | `internal/policy` | Three tiers, explicit name lists validated against the registered set at start-up, local operator authority, the remote enablement-and-scope intersection, confirmation requirement | 91.7% |
 | `internal/identity` | Principal type, request context, and the bearer resolver that takes the principal only from a verified token | 97.7% |
-| `internal/oauthserver` | The authorization server: PKCE S256 only, exact issuer and redirect matching, single-use bound codes, hashed opaque tokens, rotating refresh with family revocation, consent | 92.4% |
+| `internal/oauthserver` | The authorization server: PKCE S256 only, exact issuer matching, redirect matching that is exact by default and admits one opt-in trailing-path wildcard per client (`RedirectPattern`), single-use bound codes, hashed opaque tokens, rotating refresh with family revocation, consent bound to the concrete presented redirect | 92.4% |
 | `internal/oauthstore` | The adapter from the authorization server's `Store` interface onto the SQLite store, with a compile-time assertion and five contention tests | 84.6% |
 | `internal/store` | `FileStore` for stdio, plus the migration-backed SQLite backend for remote: principals, encrypted DI token sets with CAS, clients, consents, hashed transactions and codes, token families, audit events. The database file and its `-wal`/`-shm` sidecars are verified before the driver ever opens them | 83.1% |
 | `migrations` | The embedded, checksummed, monotonic SQL migrations `0001_initial.sql` and `0002_oauth_contract.sql` | 100.0% |
 | `internal/cryptostore` | AES-256-GCM envelope encryption with versioned key IDs and principal/record-type AAD, and an owner-only key file. `LoadKey` verifies the key directory's ownership and mode on every read | 87.5% |
 | `internal/securefile` | The shared filesystem hardening every store uses: `os.Root` component-by-component path resolution, post-open identity verification, link-based exclusive install, non-blocking regular-file reads, owner-only modes, and descriptor-based ownership verification (`st_uid == euid`) for both files and directories | 85.8% |
 | `internal/tokenlink` | `Store`, the adapter that makes a `*store.FileStore` satisfy `auth.TokenStore` by converting between the two packages' `TokenSet` types | 80.0% |
-| `internal/loginweb` | The browser login flow in two profiles: the one-shot loopback profile and the remote profile with the `__Host-` cookie, HSTS, disclosure page, independent CSRF token, and server-held MFA continuation | 82.6% |
+| `internal/loginweb` | The browser login flow in two profiles: the one-shot loopback profile and the remote profile with the `__Host-` cookie, HSTS, disclosure page, independent CSRF token, server-held MFA continuation, and an opt-in login allowlist (`EmailAllowlist`) checked before the Garmin call | 82.6% |
 | `internal/mcplog` | Structured `slog` logging with the allowlisted field set, level mapping, and the stderr sink that refuses stdout | 98.5% |
 | `internal/notices` | The `THIRD_PARTY_NOTICES.md` generator: the linked module set unioned over the six released targets, the curated SPDX and licence-file registry, verbatim licence copying, and the freshness test that fails on a stale notices file | 89.3% |
 | `internal/ratelimit` | The per-principal limiter and its handler middleware | 94.8% |
@@ -131,6 +131,15 @@ These boundaries stay separate at all times, and all three are enforced by code:
 | MCP client to this server | This server's OAuth access token | Never forwarded to Garmin |
 | This server to Garmin | Per-principal Garmin DI token set | Never returned to the MCP client |
 | Browser to login transaction | One-time cookie plus server-side transaction state | Credentials never become MCP tool arguments |
+
+OAuth redirect URI matching is byte-exact, with one narrow, default-off
+exception: the operator setting `oauth-allow-redirect-wildcards` admits a single
+trailing-path wildcard per registered client, under a fixed grammar that keeps
+the scheme and host exact and refuses path traversal in the matched remainder.
+It is unsafe by design; see `docs/threat-model.md` and ADR 0009. A separate
+setting, `login-allowed-emails`, restricts which Garmin account addresses may
+complete the remote browser login; empty (the default) admits any account, and
+the setting gates login rather than an existing principal.
 
 ### Safety model [NOW]
 

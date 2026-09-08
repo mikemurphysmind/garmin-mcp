@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ func (c Config) Validate() error {
 	errs = append(errs, c.validateSecrets()...)
 	errs = append(errs, c.validatePaths()...)
 	errs = append(errs, c.validateToolPolicy()...)
+	errs = append(errs, c.validateLoginAllowedEmails()...)
 
 	switch c.Transport {
 	case TransportStdio:
@@ -67,6 +69,8 @@ func (c Config) validateStdio() []error {
 		{key: keyAllowInsecureHTTP, set: c.AllowInsecureHTTP},
 		{key: keyAllowedOrigins, set: len(c.AllowedOrigins) > 0},
 		{key: keyOAuthClients, set: len(c.OAuthClients) > 0},
+		{key: keyLoginAllowedEmails, set: len(c.LoginAllowedEmails) > 0},
+		{key: keyOAuthAllowRedirectWildcards, set: c.OAuthAllowRedirectWildcards},
 	}
 
 	var errs []error
@@ -312,4 +316,68 @@ func (c Config) validateLogging() error {
 
 func containsString(haystack []string, needle string) bool {
 	return slices.Contains(haystack, needle)
+}
+
+// maxLoginAllowedEmails bounds the login allowlist, and maxAllowedEmailLen bounds
+// one entry (RFC 5321 §4.5.3.1.3). Both are spelled here rather than imported,
+// because config must not depend on a server package; loginweb applies the same
+// two numbers.
+const (
+	maxLoginAllowedEmails = 256
+	maxAllowedEmailLen    = 254
+)
+
+// validateLoginAllowedEmails checks the login allowlist lexically. No message
+// ever carries an entry: an entry is an account address, so the errors name the
+// position instead.
+func (c Config) validateLoginAllowedEmails() []error {
+	if len(c.LoginAllowedEmails) == 0 {
+		return nil
+	}
+	if len(c.LoginAllowedEmails) > maxLoginAllowedEmails {
+		return []error{newFieldError(keyLoginAllowedEmails,
+			"carries more addresses than the limit", ErrInvalidConfig)}
+	}
+
+	var errs []error
+	seen := make([]string, 0, len(c.LoginAllowedEmails))
+	for i, raw := range c.LoginAllowedEmails {
+		entry := strings.TrimSpace(raw)
+		if err := checkAllowedEmailEntry(i, entry); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		folded := strings.ToLower(entry)
+		if containsString(seen, folded) {
+			errs = append(errs, newFieldError(keyLoginAllowedEmails,
+				fmt.Sprintf("entry %d repeats an earlier address, ignoring case", i),
+				ErrInvalidConfig))
+			continue
+		}
+		seen = append(seen, folded)
+	}
+	return errs
+}
+
+// checkAllowedEmailEntry validates one entry by position.
+func checkAllowedEmailEntry(index int, entry string) error {
+	switch {
+	case entry == "":
+		return newFieldError(keyLoginAllowedEmails,
+			fmt.Sprintf("entry %d is empty", index), ErrInvalidConfig)
+	case len(entry) > maxAllowedEmailLen:
+		return newFieldError(keyLoginAllowedEmails,
+			fmt.Sprintf("entry %d is longer than %d bytes", index, maxAllowedEmailLen),
+			ErrInvalidConfig)
+	case strings.ContainsFunc(entry, isControlRune), strings.ContainsAny(entry, " \t"):
+		return newFieldError(keyLoginAllowedEmails,
+			fmt.Sprintf("entry %d carries a space or control character", index), ErrInvalidConfig)
+	}
+	local, host, found := strings.Cut(entry, "@")
+	if !found || local == "" || host == "" || strings.Contains(host, "@") ||
+		!strings.Contains(host, ".") {
+		return newFieldError(keyLoginAllowedEmails,
+			fmt.Sprintf("entry %d is not one address with a dotted host", index), ErrInvalidConfig)
+	}
+	return nil
 }

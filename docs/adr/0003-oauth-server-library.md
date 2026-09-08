@@ -101,7 +101,9 @@ clients only when PKCE is enforced" is structural here, not conditional.
 - Redirect matching is exact, including the port, so a native client using an
   ephemeral loopback port cannot be preregistered. If the client interoperability
   matrix requires it, add an explicit per-client opt-in for RFC 8252 §7.3 rather
-  than relaxing matching globally.
+  than relaxing matching globally. (See ADR 0009 for the one narrow,
+  operator-acknowledged exception later added: a trailing-path wildcard, not
+  this bullet's loopback-port case.)
 - `http://localhost` is refused; the literal `127.0.0.1` and `[::1]` are accepted,
   per RFC 8252 §8.3.
 - The choice is replaceable: `Store` is the only seam to re-point.

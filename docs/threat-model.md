@@ -45,6 +45,8 @@ is still a requirement.
 | Request-time host guard. A caller-supplied request whose host is not a validated Garmin host is refused with `ErrForeignHost`, on the first attempt and on the post-`401` replay, so the Garmin bearer token cannot be attached to a foreign host | `internal/garmin/auth/hostguard.go` | 5 |
 | PKCE S256 only. `plain` exists solely to be refused, a zero challenge fails, and the schema repeats the rule as `CHECK (code_challenge_method = 'S256')` | `internal/oauthserver/pkce.go`, `migrations/0001_initial.sql` | 2 |
 | Exact issuer and byte-exact redirect matching. Host case, default port and trailing slash are not folded, and every binding is revalidated at redemption | `internal/oauthserver/config.go`, `internal/oauthserver/uri.go`, `internal/oauthserver/codegrant.go` | 2 |
+| Opt-in trailing-path redirect wildcard, off by default. `oauth-allow-redirect-wildcards` is the operator's acknowledgement; the pattern must satisfy every exact-URI origin rule, carry no query, and have its remainder free of `.`, `..`, and empty path segments, so a match can never resolve outside the registered prefix. `MatchRedirectURI` still returns the concrete presented URI, so consent and the issued code stay bound to it, not to the pattern | `internal/oauthserver/redirectpattern.go`, `internal/oauthserver/client.go` | 2 |
+| Login-time account allowlist. `login-allowed-emails` is checked before the Garmin login call, refusing an unlisted address with the same generic message a rejected credential produces so the check cannot be used to enumerate accounts; empty admits any account and the setting gates login, not an existing principal | `internal/loginweb/allowlist.go`, `internal/loginweb/remotehandlers.go` | 4, 6 |
 | Client `state` echoed byte for byte and never reused as server state. The transaction capability, the browser cookie and the form CSRF token are three independent server-generated values | `internal/oauthserver/state.go`, `internal/oauthserver/authorize.go`, `internal/loginweb/remotesession.go` | 2, 6 |
 | Single-use authorization codes bound to client, exact redirect, PKCE challenge, resource, scopes and principal, with a 60-second default TTL under a 5-minute ceiling. Redemption consumes the code atomically before anything else, and one redeemer wins under contention | `internal/oauthserver/codegrant.go`, `internal/oauthserver/records.go`, `internal/oauthstore/race_test.go` (`TestConsumeCodeElectsExactlyOneRedeemer`) | 2 |
 | Opaque MCP credentials with 256 bits of entropy from `crypto/rand`, persisted and compared only as a SHA-256 lookup value. The stored columns are `code_hash`, `handle_hash`, `secret_hash` and `token_hash` | `internal/oauthserver/secret.go`, `migrations/0001_initial.sql` | 1, 3 |
@@ -200,15 +202,34 @@ five minutes, be single-use, and be bound to client ID, exact redirect URI, PKCE
 challenge, resource, scopes, and principal; token exchange must revalidate every
 binding. The client's `state` must be preserved byte for byte and never reused as
 the server's CSRF or session state; the server must generate an independent
-transaction capability, browser cookie, and form CSRF token. Issuer, audience
-(RFC 8707 `resource`), and redirect URI must use exact matching; fragments,
-userinfo, wildcards, and non-HTTPS redirects must be rejected except
+transaction capability, browser cookie, and form CSRF token. Issuer and audience
+(RFC 8707 `resource`) must always use exact matching, with no wildcard admitted
+under any setting. Redirect URI matching must use exact matching, and that stays
+the only rule unless the operator sets `oauth-allow-redirect-wildcards`; with it
+set, one trailing-path wildcard per registration is admitted under the parse and
+normalization rules in `internal/oauthserver/redirectpattern.go`, and every other
+wildcard shape — a host wildcard, a mid-path wildcard, more than one `*` — stays
+refused. Fragments, userinfo, and non-HTTPS redirects must be rejected except
 standards-compliant loopback. Duplicate or conflicting security parameters must be
 rejected. Refresh tokens must rotate on every use, be bound to principal, client,
 resource, and family, never expand scope or change resource, and reuse must
 trigger transactional family revocation. Errors may redirect only after the client
 and exact redirect URI are validated; otherwise a local sanitized error page must
 be rendered. The negative OAuth matrix is a required test class.
+
+A trailing-path redirect wildcard is weaker than exact matching, and it is off
+by default for that reason. Where it is enabled, any open redirector or any
+endpoint serving attacker-influenced content **under the wildcarded prefix**
+lets an attacker craft an authorization request whose redirect the pattern
+admits and receive the victim's authorization code. PKCE does not mitigate
+this: the attacker generates their own challenge. `login-allowed-emails` does
+not mitigate it either, because the victim is an allowlisted user logging in
+with their own credentials. The mitigations that remain are the operator's
+choice of prefix and the consent page, which names the redirect host. The
+widest prefix the grammar admits, `https://host/*`, matches every path on that
+host: scheme, host, and the absence of userinfo or fragment stay exact, but this
+is the widest form the feature can express, and an operator who registers it is
+trusting every path that host ever serves.
 
 ### 3. Confused deputy and token passthrough
 

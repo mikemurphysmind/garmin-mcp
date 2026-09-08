@@ -297,7 +297,7 @@ func TestAConfidentialClientAcceptsAnInlineDigest(t *testing.T) {
 	registration := confidentialRegistration()
 	registration.SecretHash = config.NewSecret(digest)
 
-	client, err := buildClient(registration)
+	client, err := buildClient(registration, false)
 	if err != nil {
 		t.Fatalf("buildClient(inline digest) = %v, want it accepted", err)
 	}

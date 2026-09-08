@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/tamcore/garmin-mcp/internal/config"
@@ -43,14 +44,18 @@ var _ oauthserver.ClientStore = (*configClients)(nil)
 // but it is the value an attacker would want in order to test a guessed secret
 // offline, so it is treated as secret material: it is never rendered, never
 // logged, and never echoed into an error.
-func newConfigClients(cfg config.Config) (*configClients, error) {
+//
+// events receives one warning per registered wildcard redirect pattern. A nil
+// logger is accepted and simply logs nothing, which callers that have not yet
+// built a logger rely on.
+func newConfigClients(cfg config.Config, events *slog.Logger) (*configClients, error) {
 	registry := &configClients{
 		clients: make(map[string]oauthserver.Client, len(cfg.OAuthClients)),
 		ids:     make([]string, 0, len(cfg.OAuthClients)),
 	}
 
 	for _, registration := range cfg.OAuthClients {
-		client, err := buildClient(registration)
+		client, err := buildClient(registration, cfg.OAuthAllowRedirectWildcards)
 		if err != nil {
 			return nil, err
 		}
@@ -58,10 +63,26 @@ func newConfigClients(cfg config.Config) (*configClients, error) {
 			return nil, fmt.Errorf("client %q is registered twice: %w",
 				client.ID(), oauthserver.ErrInvalidClient)
 		}
+		warnWildcardRedirects(events, client)
 		registry.clients[client.ID()] = client
 		registry.ids = append(registry.ids, client.ID())
 	}
 	return registry, nil
+}
+
+// warnWildcardRedirects records one warning per registered wildcard pattern. The
+// pattern is operator-authored configuration and names no account, so it is safe
+// to log, and an operator who set the acknowledgement months ago should still see
+// which patterns are live in every start-up log.
+func warnWildcardRedirects(events *slog.Logger, client oauthserver.Client) {
+	if events == nil {
+		return
+	}
+	for _, pattern := range client.RedirectPatterns() {
+		events.Warn("client registers a wildcard redirect URI, which is weaker than exact matching",
+			slog.String("client_id", client.ID()),
+			slog.String("redirect_pattern", pattern.String()))
+	}
 }
 
 // buildClient converts one configured registration into a validated client.
@@ -70,7 +91,7 @@ func newConfigClients(cfg config.Config) (*configClients, error) {
 // already checked. That duplication is deliberate: the server's rules are the
 // authoritative ones, and a registration this composition root accepted but the
 // server would refuse must fail at start-up rather than at the first request.
-func buildClient(registration config.OAuthClient) (oauthserver.Client, error) {
+func buildClient(registration config.OAuthClient, allowWildcards bool) (oauthserver.Client, error) {
 	digest, err := clientDigest(registration)
 	if err != nil {
 		return oauthserver.Client{}, err
@@ -84,6 +105,7 @@ func buildClient(registration config.OAuthClient) (oauthserver.Client, error) {
 		Resources:               registration.Resources,
 		TokenEndpointAuthMethod: authMethodOf(registration),
 		SecretHashHex:           digest,
+		AllowWildcardRedirects:  allowWildcards,
 	})
 	if err != nil {
 		return oauthserver.Client{}, fmt.Errorf("registering client %q: %w", registration.ID, err)

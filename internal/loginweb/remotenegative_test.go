@@ -290,3 +290,90 @@ func TestRemoteMFATerminalFailureAbandonsTheTransaction(t *testing.T) {
 		t.Errorf("CompleteMFA was called %d times, want 1", h.garmin.mfaCalls)
 	}
 }
+
+// withAllowlist restricts a harness's remote profile to exactly the given addresses.
+func withAllowlist(t *testing.T, addresses ...string) func(*loginweb.RemoteConfig) {
+	t.Helper()
+
+	return func(cfg *loginweb.RemoteConfig) {
+		allowlist, err := loginweb.NewEmailAllowlist(addresses)
+		if err != nil {
+			t.Fatalf("NewEmailAllowlist: %v", err)
+		}
+		cfg.AllowedEmails = allowlist
+	}
+}
+
+// TestARefusedAddressNeverReachesGarmin proves the allowlist is consulted before
+// Garmin: a stranger's address costs the deployment zero requests upstream, and the
+// refusal neither echoes the address in the page nor logs it.
+func TestARefusedAddressNeverReachesGarmin(t *testing.T) {
+	h := newRemote(t, &fakeAuthenticator{loginAttempt: remoteSucceeded()},
+		withAllowlist(t, "allowed@example.com"))
+	h.authorize()
+	form := h.continueToCredentials()
+
+	_, body := h.submitCredentialsAs(form, "stranger@example.com", "irrelevant")
+
+	if h.garmin.logins != 0 {
+		t.Fatalf("Login was called %d times for a refused address, want 0", h.garmin.logins)
+	}
+	if !strings.Contains(body, "Garmin did not accept those credentials") {
+		t.Fatalf("the refusal did not render the generic credential message: %s", body)
+	}
+	if strings.Contains(body, "stranger@example.com") {
+		t.Fatalf("the rendered page leaked the submitted address: %s", body)
+	}
+	if strings.Contains(h.logs.String(), "stranger@example.com") {
+		t.Fatalf("a log record leaked the submitted address: %s", h.logs.String())
+	}
+}
+
+// TestAPermittedAddressReachesGarmin proves a listed address is unaffected: the
+// allowlist folds case, and the login call still runs.
+func TestAPermittedAddressReachesGarmin(t *testing.T) {
+	h := newRemote(t, &fakeAuthenticator{loginAttempt: remoteSucceeded()},
+		withAllowlist(t, "Allowed@Example.com"))
+	h.authorize()
+	form := h.continueToCredentials()
+
+	h.submitCredentialsAs(form, "allowed@example.com", "correct-horse")
+
+	if h.garmin.logins != 1 {
+		t.Fatalf("Login was called %d times for a permitted address, want 1", h.garmin.logins)
+	}
+}
+
+// TestAnOpenAllowlistReachesGarmin proves the zero-value allowlist changes nothing:
+// a deployment that never sets AllowedEmails behaves exactly as it does today.
+func TestAnOpenAllowlistReachesGarmin(t *testing.T) {
+	h := newRemote(t, &fakeAuthenticator{loginAttempt: remoteSucceeded()}) // AllowedEmails left at its zero value
+	h.authorize()
+	form := h.continueToCredentials()
+
+	h.submitCredentialsAs(form, "anyone@example.com", "correct-horse")
+
+	if h.garmin.logins != 1 {
+		t.Fatalf("Login was called %d times with an open allowlist, want 1", h.garmin.logins)
+	}
+}
+
+// TestARefusedAddressConsumesAnAttempt proves the check is not a free probe loop: a
+// refused address still spends the transaction's attempt budget.
+func TestARefusedAddressConsumesAnAttempt(t *testing.T) {
+	h := newRemote(t, &fakeAuthenticator{loginAttempt: remoteSucceeded()},
+		withAllowlist(t, "allowed@example.com"),
+		func(cfg *loginweb.RemoteConfig) { cfg.MaxAttempts = 1 })
+	h.authorize()
+	form := h.continueToCredentials()
+
+	_, form = h.submitCredentialsAs(form, "stranger@example.com", "irrelevant")
+	_, body := h.submitCredentialsAs(form, "allowed@example.com", "correct-horse")
+
+	if h.garmin.logins != 0 {
+		t.Fatal("the transaction survived a refused address past its attempt budget")
+	}
+	if strings.Contains(body, "Garmin did not accept those credentials") {
+		t.Fatalf("a spent transaction rendered the retry page instead of a refusal: %s", body)
+	}
+}

@@ -435,8 +435,42 @@ URI from configuration removes it from the database at the next start. A merge
 would let a URI an operator withdrew survive, which is the exact failure a
 redirect allowlist exists to prevent.
 
-Matching at authorization time is byte-exact. There is no normalization, no
-prefix rule, and no wildcard.
+Matching at authorization time is byte-exact by default. There is no
+normalization and no prefix rule, and a `redirect-uris` entry carrying `*` is
+rejected outright unless `oauth-allow-redirect-wildcards` is set — see
+"Registering a redirect wildcard" below and
+[the configuration reference](configuration.md#redirect-wildcards).
+
+### Registering a redirect wildcard
+
+A hosted MCP client (ChatGPT and similar) can carry a callback path that differs
+per installation or per conversation, which byte-exact matching cannot serve
+without a redeploy for every new user. `oauth-allow-redirect-wildcards` (default
+off, restart required to change) lets one client entry register a trailing-path
+wildcard once, so a later user with a new concrete callback under that prefix
+needs no redeploy:
+
+```yaml
+oauth-allow-redirect-wildcards: true
+oauth-clients:
+  - id: chatgpt
+    redirect-uris:
+      - "https://chatgpt.com/a/b/c/*"
+```
+
+This setting is **unsafe** — read
+[the configuration reference](configuration.md#redirect-wildcards) and
+[the threat model](threat-model.md#2-authorization-code-state-pkce-csrf-redirect-and-refresh-token-replay)
+before enabling it. Prefer the narrowest prefix that actually serves the
+client's callback path; `https://host/*` matches every path on that host.
+Consent still binds to the concrete redirect URI a user presented, never to the
+pattern, so a new concrete redirect under an already-registered prefix still
+needs that user's own fresh consent.
+
+If the operator knows future users' Garmin addresses ahead of time, list them in
+`login-allowed-emails` (see "Restricting who can log in" below) before those
+users arrive — the two settings are independent, and neither compensates for the
+other.
 
 ### A disabled client is not silently re-enabled
 
@@ -593,6 +627,35 @@ configuration. The filtered `tools/list` result itself carries `"cacheScope":
 "private"` rather than the wire default of `"public"`, because the result is
 caller-specific and a shared intermediary must not serve one caller's list to
 another.
+
+### Restricting who can log in
+
+`login-allowed-emails` (default empty, restart required to change) restricts
+which Garmin account addresses may complete the **remote** browser login. Empty
+admits any account — an upgrade that does not set this list changes nothing.
+List future users' addresses up front, before they first log in:
+
+```yaml
+login-allowed-emails:
+  - a@example.com
+  - b@example.com
+```
+
+The check runs before the Garmin login call and compares case-insensitively, so
+an operator does not need to match a user's exact capitalization. It is not a
+compensating control for `oauth-allow-redirect-wildcards`: a redirect-wildcard
+attack runs through an allowlisted victim's own login with their own
+credentials, and this setting only decides who may attempt a login at all.
+
+**This is not a kill switch.** The allowlist gates login, which is where a
+principal is created; it does not touch a principal that already exists. To
+revoke a user who has been removed from `login-allowed-emails` but already holds
+a principal, use the commands in
+["What an operator can actually do today"](#what-an-operator-can-actually-do-today):
+`garmin-mcp revoke --principal <id>` for the OAuth authorization, or
+`garmin-mcp unlink --principal <id>` to also remove their local Garmin token
+link. Removing the address from configuration only stops a *future* login by
+that address; it does neither of those on its own.
 
 ### Public and confidential clients
 

@@ -15,38 +15,40 @@ import (
 // This follows the pattern the protocol package uses for its response and
 // classification types.
 type redactedConfig struct {
-	Type                   string   `json:"type"`
-	Transport              string   `json:"transport"`
-	BindAddress            string   `json:"bindAddress,omitempty"`
-	PublicURL              string   `json:"publicURL,omitempty"`
-	TrustedProxyCIDRs      []string `json:"trustedProxyCIDRs,omitempty"`
-	AllowedOrigins         []string `json:"allowedOrigins,omitempty"`
-	OAuthClientIDs         []string `json:"oauthClientIDs,omitempty"`
-	SessionTimeout         string   `json:"sessionTimeout"`
-	AllowInsecureHTTP      bool     `json:"allowInsecureHTTP"`
-	TLSCertFile            string   `json:"tlsCertFile,omitempty"`
-	TLSKeyFile             string   `json:"tlsKeyFile,omitempty"`
-	DatabasePath           string   `json:"databasePath,omitempty"`
-	StateDir               string   `json:"stateDir,omitempty"`
-	PrincipalID            string   `json:"principalID,omitempty"`
-	MasterKeyFile          string   `json:"masterKeyFile,omitempty"`
-	MasterKey              string   `json:"masterKey"`
-	GarminTokensFile       string   `json:"garminTokensFile,omitempty"`
-	GarminTokens           string   `json:"garminTokens"`
-	Region                 string   `json:"region"`
-	EnableWriteTools       bool     `json:"enableWriteTools"`
-	EnableDestructiveTools bool     `json:"enableDestructiveTools"`
-	ToolAllowlistLen       int      `json:"toolAllowlistLen"`
-	ToolDenylistLen        int      `json:"toolDenylistLen"`
-	MaxRequestBytes        int64    `json:"maxRequestBytes"`
-	MaxResponseBytes       int64    `json:"maxResponseBytes"`
-	RequestTimeout         string   `json:"requestTimeout"`
-	SafetyDelay            string   `json:"safetyDelay"`
-	ReadRateLimit          int      `json:"readRateLimitPerMinute"`
-	WriteRateLimit         int      `json:"writeRateLimitPerMinute"`
-	LogLevel               string   `json:"logLevel"`
-	LogFormat              string   `json:"logFormat"`
-	ConfigFile             string   `json:"configFile,omitempty"`
+	Type                        string   `json:"type"`
+	Transport                   string   `json:"transport"`
+	BindAddress                 string   `json:"bindAddress,omitempty"`
+	PublicURL                   string   `json:"publicURL,omitempty"`
+	TrustedProxyCIDRs           []string `json:"trustedProxyCIDRs,omitempty"`
+	AllowedOrigins              []string `json:"allowedOrigins,omitempty"`
+	OAuthClientIDs              []string `json:"oauthClientIDs,omitempty"`
+	OAuthAllowRedirectWildcards bool     `json:"oauthAllowRedirectWildcards"`
+	LoginAllowedEmailsLen       int      `json:"loginAllowedEmailsLen"`
+	SessionTimeout              string   `json:"sessionTimeout"`
+	AllowInsecureHTTP           bool     `json:"allowInsecureHTTP"`
+	TLSCertFile                 string   `json:"tlsCertFile,omitempty"`
+	TLSKeyFile                  string   `json:"tlsKeyFile,omitempty"`
+	DatabasePath                string   `json:"databasePath,omitempty"`
+	StateDir                    string   `json:"stateDir,omitempty"`
+	PrincipalID                 string   `json:"principalID,omitempty"`
+	MasterKeyFile               string   `json:"masterKeyFile,omitempty"`
+	MasterKey                   string   `json:"masterKey"`
+	GarminTokensFile            string   `json:"garminTokensFile,omitempty"`
+	GarminTokens                string   `json:"garminTokens"`
+	Region                      string   `json:"region"`
+	EnableWriteTools            bool     `json:"enableWriteTools"`
+	EnableDestructiveTools      bool     `json:"enableDestructiveTools"`
+	ToolAllowlistLen            int      `json:"toolAllowlistLen"`
+	ToolDenylistLen             int      `json:"toolDenylistLen"`
+	MaxRequestBytes             int64    `json:"maxRequestBytes"`
+	MaxResponseBytes            int64    `json:"maxResponseBytes"`
+	RequestTimeout              string   `json:"requestTimeout"`
+	SafetyDelay                 string   `json:"safetyDelay"`
+	ReadRateLimit               int      `json:"readRateLimitPerMinute"`
+	WriteRateLimit              int      `json:"writeRateLimitPerMinute"`
+	LogLevel                    string   `json:"logLevel"`
+	LogFormat                   string   `json:"logFormat"`
+	ConfigFile                  string   `json:"configFile,omitempty"`
 }
 
 // redacted projects c into its printable shape.
@@ -56,38 +58,40 @@ type redactedConfig struct {
 // treats an exact tool name as sensitive.
 func (c Config) redacted() redactedConfig {
 	return redactedConfig{
-		Type:                   "config.Config",
-		Transport:              string(c.Transport),
-		BindAddress:            c.BindAddress,
-		PublicURL:              c.PublicURL,
-		TrustedProxyCIDRs:      copyStrings(c.TrustedProxyCIDRs),
-		AllowedOrigins:         copyStrings(c.AllowedOrigins),
-		OAuthClientIDs:         clientIDs(c.OAuthClients),
-		SessionTimeout:         c.SessionTimeout.String(),
-		AllowInsecureHTTP:      c.AllowInsecureHTTP,
-		TLSCertFile:            c.TLSCertFile,
-		TLSKeyFile:             c.TLSKeyFile,
-		DatabasePath:           c.DatabasePath,
-		StateDir:               c.StateDir,
-		PrincipalID:            c.PrincipalID,
-		MasterKeyFile:          c.MasterKeyPath,
-		MasterKey:              c.MasterKey.String(),
-		GarminTokensFile:       c.GarminTokensPath,
-		GarminTokens:           c.GarminTokens.String(),
-		Region:                 c.Region.String(),
-		EnableWriteTools:       c.EnableWriteTools,
-		EnableDestructiveTools: c.EnableDestructiveTools,
-		ToolAllowlistLen:       len(c.ToolAllowlist),
-		ToolDenylistLen:        len(c.ToolDenylist),
-		MaxRequestBytes:        c.MaxRequestBytes,
-		MaxResponseBytes:       c.MaxResponseBytes,
-		RequestTimeout:         c.RequestTimeout.String(),
-		SafetyDelay:            c.SafetyDelay.String(),
-		ReadRateLimit:          c.ReadRateLimitPerMinute,
-		WriteRateLimit:         c.WriteRateLimitPerMinute,
-		LogLevel:               c.LogLevel,
-		LogFormat:              c.LogFormat,
-		ConfigFile:             c.ConfigFile,
+		Type:                        "config.Config",
+		Transport:                   string(c.Transport),
+		BindAddress:                 c.BindAddress,
+		PublicURL:                   c.PublicURL,
+		TrustedProxyCIDRs:           copyStrings(c.TrustedProxyCIDRs),
+		AllowedOrigins:              copyStrings(c.AllowedOrigins),
+		OAuthClientIDs:              clientIDs(c.OAuthClients),
+		OAuthAllowRedirectWildcards: c.OAuthAllowRedirectWildcards,
+		LoginAllowedEmailsLen:       len(c.LoginAllowedEmails),
+		SessionTimeout:              c.SessionTimeout.String(),
+		AllowInsecureHTTP:           c.AllowInsecureHTTP,
+		TLSCertFile:                 c.TLSCertFile,
+		TLSKeyFile:                  c.TLSKeyFile,
+		DatabasePath:                c.DatabasePath,
+		StateDir:                    c.StateDir,
+		PrincipalID:                 c.PrincipalID,
+		MasterKeyFile:               c.MasterKeyPath,
+		MasterKey:                   c.MasterKey.String(),
+		GarminTokensFile:            c.GarminTokensPath,
+		GarminTokens:                c.GarminTokens.String(),
+		Region:                      c.Region.String(),
+		EnableWriteTools:            c.EnableWriteTools,
+		EnableDestructiveTools:      c.EnableDestructiveTools,
+		ToolAllowlistLen:            len(c.ToolAllowlist),
+		ToolDenylistLen:             len(c.ToolDenylist),
+		MaxRequestBytes:             c.MaxRequestBytes,
+		MaxResponseBytes:            c.MaxResponseBytes,
+		RequestTimeout:              c.RequestTimeout.String(),
+		SafetyDelay:                 c.SafetyDelay.String(),
+		ReadRateLimit:               c.ReadRateLimitPerMinute,
+		WriteRateLimit:              c.WriteRateLimitPerMinute,
+		LogLevel:                    c.LogLevel,
+		LogFormat:                   c.LogFormat,
+		ConfigFile:                  c.ConfigFile,
 	}
 }
 
@@ -106,6 +110,8 @@ func (r redactedConfig) pairs() []string {
 		"trustedProxyCIDRs:" + strconv.Itoa(len(r.TrustedProxyCIDRs)),
 		"allowedOrigins:" + strconv.Itoa(len(r.AllowedOrigins)),
 		"oauthClients:" + strconv.Itoa(len(r.OAuthClientIDs)),
+		"oauthAllowRedirectWildcards:" + strconv.FormatBool(r.OAuthAllowRedirectWildcards),
+		"loginAllowedEmailsLen:" + strconv.Itoa(r.LoginAllowedEmailsLen),
 		"sessionTimeout:" + r.SessionTimeout,
 		"allowInsecureHTTP:" + strconv.FormatBool(r.AllowInsecureHTTP),
 		"tlsCertFile:" + quoteValue(r.TLSCertFile),
@@ -156,6 +162,8 @@ func (c Config) LogValue() slog.Value {
 		slog.Int("trustedProxyCIDRs", len(red.TrustedProxyCIDRs)),
 		slog.Int("allowedOrigins", len(red.AllowedOrigins)),
 		slog.Int("oauthClients", len(red.OAuthClientIDs)),
+		slog.Bool("oauthAllowRedirectWildcards", red.OAuthAllowRedirectWildcards),
+		slog.Int("loginAllowedEmailsLen", red.LoginAllowedEmailsLen),
 		slog.String("sessionTimeout", red.SessionTimeout),
 		slog.Bool("allowInsecureHTTP", red.AllowInsecureHTTP),
 		slog.String("databasePath", red.DatabasePath),

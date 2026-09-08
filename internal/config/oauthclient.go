@@ -45,7 +45,9 @@ type OAuthClient struct {
 	// Name is the human-readable name shown on the non-binding disclosure page.
 	Name string
 	// RedirectURIs are the exact redirect URIs this client may use. At least one
-	// is required, and matching against them is byte-exact.
+	// is required. Matching is byte-exact unless the operator-level
+	// oauth-allow-redirect-wildcards setting is on, in which case one
+	// trailing-path wildcard pattern per client is admitted.
 	RedirectURIs []string
 	// Scopes is the widest scope set this client may ever be granted. At least
 	// one is required.
@@ -108,7 +110,7 @@ func (c Config) validateRegistry() []error {
 	var errs []error
 	seen := make(map[string]struct{}, len(c.OAuthClients))
 	for i, client := range c.OAuthClients {
-		errs = append(errs, client.validate(i)...)
+		errs = append(errs, client.validate(i, c.OAuthAllowRedirectWildcards)...)
 		id := strings.TrimSpace(client.ID)
 		if id == "" {
 			continue
@@ -123,9 +125,12 @@ func (c Config) validateRegistry() []error {
 }
 
 // validate checks one registration. position names the entry in every message.
-func (c OAuthClient) validate(position int) []error {
+// allowWildcards is the operator's acknowledgement that a redirect URI may end
+// in a trailing-path wildcard; it never widens what a resource indicator may
+// carry.
+func (c OAuthClient) validate(position int, allowWildcards bool) []error {
 	errs := c.validateIdentity(position)
-	errs = append(errs, c.validateRedirects(position)...)
+	errs = append(errs, c.validateRedirects(position, allowWildcards)...)
 	errs = append(errs, c.validateGrantSurface(position)...)
 	errs = append(errs, c.validateCredential(position)...)
 	return errs
@@ -164,7 +169,9 @@ func (c OAuthClient) validateIdentity(position int) []error {
 }
 
 // validateRedirects requires at least one exactly-matchable redirect URI.
-func (c OAuthClient) validateRedirects(position int) []error {
+// allowWildcards admits a trailing-path wildcard pattern; see
+// [OAuthClient.checkRedirectURI].
+func (c OAuthClient) validateRedirects(position int, allowWildcards bool) []error {
 	switch {
 	case len(c.RedirectURIs) == 0:
 		return []error{c.reject(position, "must register at least one redirect URI", ErrMissingSetting)}
@@ -177,7 +184,7 @@ func (c OAuthClient) validateRedirects(position int) []error {
 	var errs []error
 	seen := make(map[string]struct{}, len(c.RedirectURIs))
 	for _, uri := range c.RedirectURIs {
-		if err := c.checkRedirectURI(position, uri); err != nil {
+		if err := c.checkRedirectURI(position, uri, allowWildcards); err != nil {
 			errs = append(errs, err)
 			continue
 		}
@@ -192,9 +199,16 @@ func (c OAuthClient) validateRedirects(position int) []error {
 // checkRedirectURI applies the exact-match rules. Each one closes a known attack:
 // a relative target riding on this origin, a plaintext downgrade, a fragment the
 // server never sees, the userinfo spoof, and a wildcard registration.
-func (c OAuthClient) checkRedirectURI(position int, raw string) error {
+//
+// allowWildcards is the operator's acknowledgement
+// (oauth-allow-redirect-wildcards). With it set, this is the coarse admission
+// gate for a trailing-path wildcard pattern only: the fine-grained pattern
+// grammar — byte allowlist, traversal refusal, prefix normalization — is
+// [oauthserver.ParseRedirectPattern]'s alone, so this package never re-derives
+// it. Every origin rule below still applies to the pattern's prefix.
+func (c OAuthClient) checkRedirectURI(position int, raw string, allowWildcards bool) error {
 	const label = "redirect URI"
-	if err := c.checkURIShape(position, raw, label); err != nil {
+	if err := c.checkURIShape(position, raw, label, allowWildcards); err != nil {
 		return err
 	}
 
@@ -227,15 +241,19 @@ func (c OAuthClient) checkRedirectURI(position int, raw string) error {
 	}
 }
 
-// checkURIShape rejects the bytes a URI must never contain, before it is parsed.
-func (c OAuthClient) checkURIShape(position int, raw, label string) error {
+// checkURIShape rejects the bytes a URI must never contain, before it is
+// parsed. allowWildcard admits exactly one shape: a single "*" as the final
+// byte, immediately preceded by "/". A caller checking a resource indicator
+// must always pass false — an audience value never carries a wildcard,
+// acknowledgement or not.
+func (c OAuthClient) checkURIShape(position int, raw, label string, allowWildcard bool) error {
 	switch {
 	case strings.TrimSpace(raw) == "":
 		return c.reject(position, "must not register a blank "+label, ErrMissingSetting)
 	case len(raw) > MaxURILen:
 		return c.reject(position,
 			"must register a "+label+" of at most "+strconv.Itoa(MaxURILen)+" bytes", ErrInvalidConfig)
-	case strings.Contains(raw, "*"):
+	case strings.Contains(raw, "*") && (!allowWildcard || !isTrailingPathWildcard(raw)):
 		return c.reject(position, "must not register a wildcard "+label, ErrInvalidConfig)
 	case strings.ContainsFunc(raw, isControlRune), strings.ContainsAny(raw, " \t"):
 		return c.reject(position,
@@ -243,6 +261,14 @@ func (c OAuthClient) checkURIShape(position int, raw, label string) error {
 	default:
 		return nil
 	}
+}
+
+// isTrailingPathWildcard reports whether raw ends in exactly one "*",
+// immediately preceded by "/" — the only wildcard shape this package admits.
+// A host wildcard, a mid-path wildcard, a bare "*", and two or more "*" all
+// report false.
+func isTrailingPathWildcard(raw string) bool {
+	return strings.HasSuffix(raw, "/*") && strings.Count(raw, "*") == 1
 }
 
 // isLiteralLoopback reports whether host is a literal loopback address. The name
@@ -301,7 +327,7 @@ func (c OAuthClient) validateGrantSurface(position int) []error {
 // absolute, exact, and not plaintext outside loopback.
 func (c OAuthClient) checkResourceIndicator(position int, raw string) error {
 	const label = "resource indicator"
-	if err := c.checkURIShape(position, raw, label); err != nil {
+	if err := c.checkURIShape(position, raw, label, false); err != nil {
 		return err
 	}
 	parsed, err := url.Parse(raw)

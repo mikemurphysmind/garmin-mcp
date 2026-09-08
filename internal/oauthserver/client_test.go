@@ -8,10 +8,11 @@ import (
 )
 
 const (
-	testClientID     = "operator-registered-client"
-	testRedirect     = "https://client.example/cb"
-	testResourceURI  = "https://mcp.example/mcp"
-	testClientSecret = "3Nq0oQ9Yt7vXk2sB1cD4eF6gH8jK0lM2nP4rS6tU8wY"
+	testClientID         = "operator-registered-client"
+	testRedirect         = "https://client.example/cb"
+	testResourceURI      = "https://mcp.example/mcp"
+	testClientSecret     = "3Nq0oQ9Yt7vXk2sB1cD4eF6gH8jK0lM2nP4rS6tU8wY"
+	testWildcardRedirect = "https://chatgpt.com/cb/*"
 )
 
 func publicClientSpec() ClientSpec {
@@ -184,6 +185,104 @@ func TestClientAuthenticateConfidentialClient(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			if err := client.Authenticate(presented); !errors.Is(err, ErrClientAuthFailed) {
 				t.Fatalf("Authenticate error = %v, want ErrClientAuthFailed", err)
+			}
+		})
+	}
+}
+
+func specOf(redirects []string, allowWildcards bool) ClientSpec {
+	return ClientSpec{
+		ID:                      "chatgpt",
+		Name:                    "ChatGPT",
+		RedirectURIs:            redirects,
+		Scopes:                  "garmin:read",
+		Resources:               []string{"https://mcp.example"},
+		TokenEndpointAuthMethod: string(AuthMethodNone),
+		AllowWildcardRedirects:  allowWildcards,
+	}
+}
+
+func TestNewClientRefusesAPatternWithoutTheAcknowledgement(t *testing.T) {
+	_, err := NewClient(specOf([]string{testWildcardRedirect}, false))
+	if !errors.Is(err, ErrInvalidClient) {
+		t.Fatalf("NewClient error = %v, want ErrInvalidClient", err)
+	}
+}
+
+func TestNewClientAcceptsAPatternWithTheAcknowledgement(t *testing.T) {
+	client, err := NewClient(specOf(
+		[]string{"https://chatgpt.com/exact", testWildcardRedirect}, true))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	if got := len(client.RedirectURIs()); got != 1 {
+		t.Fatalf("RedirectURIs() has %d entries, want 1", got)
+	}
+	if got := len(client.RedirectPatterns()); got != 1 {
+		t.Fatalf("RedirectPatterns() has %d entries, want 1", got)
+	}
+}
+
+func TestMatchRedirectURIReturnsTheConcretePresentedURI(t *testing.T) {
+	client, err := NewClient(specOf([]string{testWildcardRedirect}, true))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	matched, err := client.MatchRedirectURI("https://chatgpt.com/cb/session-42")
+	if err != nil {
+		t.Fatalf("MatchRedirectURI: %v", err)
+	}
+	if got := matched.String(); got != "https://chatgpt.com/cb/session-42" {
+		t.Fatalf("MatchRedirectURI returned %q, want the concrete presented URI", got)
+	}
+}
+
+func TestMatchRedirectURIRefusesAValueNoPatternAdmits(t *testing.T) {
+	client, err := NewClient(specOf([]string{testWildcardRedirect}, true))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	for _, raw := range []string{
+		"https://chatgpt.com/cb/",
+		"https://chatgpt.com/cb/../evil",
+		"https://evil.example/cb/x",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if _, err := client.MatchRedirectURI(raw); !errors.Is(err, ErrRedirectURINotRegistered) {
+				t.Fatalf("MatchRedirectURI(%q) error = %v, want ErrRedirectURINotRegistered", raw, err)
+			}
+		})
+	}
+}
+
+func TestNewClientCountsExactAndPatternRedirectsAgainstOneCap(t *testing.T) {
+	redirects := make([]string, 0, MaxRedirectURIsPerClient+1)
+	for i := range MaxRedirectURIsPerClient {
+		redirects = append(redirects, fmt.Sprintf("https://chatgpt.com/exact-%d", i))
+	}
+	redirects = append(redirects, testWildcardRedirect)
+	if _, err := NewClient(specOf(redirects, true)); !errors.Is(err, ErrInvalidClient) {
+		t.Fatalf("NewClient over the cap error = %v, want ErrInvalidClient", err)
+	}
+}
+
+func TestNewClientRefusesADuplicatePattern(t *testing.T) {
+	_, err := NewClient(specOf(
+		[]string{testWildcardRedirect, testWildcardRedirect}, true))
+	if !errors.Is(err, ErrInvalidClient) {
+		t.Fatalf("NewClient with a duplicate pattern error = %v, want ErrInvalidClient", err)
+	}
+}
+
+func TestNewClientStillRefusesEveryOtherWildcardWithTheAcknowledgement(t *testing.T) {
+	for _, raw := range []string{
+		"https://*.chatgpt.com/cb/*",
+		"https://chatgpt.com/*/cb",
+		"https://*",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if _, err := NewClient(specOf([]string{raw}, true)); !errors.Is(err, ErrInvalidClient) {
+				t.Fatalf("NewClient(%q) error = %v, want ErrInvalidClient", raw, err)
 			}
 		})
 	}

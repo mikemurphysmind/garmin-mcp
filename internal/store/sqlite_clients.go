@@ -21,6 +21,11 @@ import (
 // normalizing at match time lets two spellings of one URI disagree between the check
 // and the redirect. Validation happens once, at registration, and the stored
 // spelling is the only accepted one.
+//
+// A row may hold a registered trailing-path pattern string (one ending in "*")
+// when the operator has set oauth-allow-redirect-wildcards; this package writes
+// and reads that string like any other but never matches against it.
+// internal/oauthserver's Client.MatchRedirectURI is the only pattern matcher.
 
 // maxRedirectURIs bounds how many URIs one client may register.
 const maxRedirectURIs = 16

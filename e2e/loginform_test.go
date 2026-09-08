@@ -367,3 +367,70 @@ func TestRemoteLoginCredentialSubmissionReachesOnlyGarminSSOAndFailsSafely(t *te
 
 	connectProxySeenTargets(t, proxy, loginSSOHost, baseline)
 }
+
+// TestARefusedAddressNeverLeavesTheProcess is the mutant this test catches: a
+// build that moved the login-allowed-emails check to run after
+// authenticator.Login, or dropped it altogether, would still refuse a
+// stranger's address (Garmin never has that account either) but would do so
+// only after a real request left the process — exactly the property this test
+// proves did not happen, by requiring zero growth over the proxy's own
+// unrelated start-up traffic rather than merely asserting a 401 came back.
+//
+// The generic rejection message and the address's absence from the rendered
+// page are the second half of the property: the two failure causes (a
+// stranger's address, a genuine Garmin refusal) must be indistinguishable to
+// anyone but this deployment's own logs, or the allowlist becomes an
+// enumeration oracle for which addresses this operator's users hold.
+func TestARefusedAddressNeverLeavesTheProcess(t *testing.T) {
+	proxy := &connectProxy{}
+	recorder := httptest.NewServer(proxy)
+	t.Cleanup(recorder.Close)
+
+	server := startRemoteServerCustomized(t, recorder.URL,
+		remoteConfigOptions{extraLines: []string{"login-allowed-emails: allowed@example.com"}}, nil)
+	// The deployment performs a start-up exercise-catalog read through this
+	// same proxy (internal/cmd's anonymous catalog fetch), so a bare "zero
+	// connections" assertion would fail for a reason that has nothing to do
+	// with the allowlist. Capturing the count here and requiring no growth
+	// below is the honest form of "the submission never reached Garmin."
+	startupTargets, _ := proxy.seen()
+	baseline := len(startupTargets)
+	browser := newBrowserClient(t, server)
+
+	const strangerAddress = "stranger@example.com"
+
+	opened := beginAuthorization(t, browser, server, "e2e-refused-address-state")
+	_ = opened.Body.Close()
+
+	disclosureBody := getBody(t, browser, server.origin+"/login")
+	continueResponse, continueBody := postForm(t, browser, server.origin+"/login",
+		url.Values{"csrf_token": {extractCSRFToken(t, disclosureBody)}})
+	if continueResponse.StatusCode != http.StatusSeeOther {
+		t.Fatalf("continue status = %d, want 303 to the credential form (body %s)",
+			continueResponse.StatusCode, continueBody)
+	}
+
+	credentialBody := getBody(t, browser, server.origin+"/login/credentials")
+	submitToken := extractCSRFToken(t, credentialBody)
+
+	submit, submitBody := postForm(t, browser, server.origin+"/login/credentials", url.Values{
+		"csrf_token": {submitToken},
+		"email":      {strangerAddress},
+		"password":   {"irrelevant-the-allowlist-refuses-before-any-check-of-it"},
+	})
+	if submit.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 for a refused address (body %s)", submit.StatusCode, submitBody)
+	}
+
+	targetsAfter, _ := proxy.seen()
+	if len(targetsAfter) != baseline {
+		t.Fatalf("a refused address produced %d new outbound connections beyond start-up traffic %v, want none",
+			len(targetsAfter)-baseline, targetsAfter[baseline:])
+	}
+	if !strings.Contains(submitBody, "did not accept those credentials") {
+		t.Errorf("the refusal did not render the generic credential message: %s", submitBody)
+	}
+	if strings.Contains(submitBody, strangerAddress) {
+		t.Errorf("the rendered page leaked the submitted address: %s", submitBody)
+	}
+}

@@ -70,6 +70,8 @@ var (
 
 	// ErrRedirectURIMismatch means the presented redirect URI is not one of the
 	// client's registered URIs. Matching is exact: no prefix rule, no wildcard.
+	// A registered row may hold a pattern string, but this store never matches
+	// against it; internal/oauthserver is the only pattern matcher.
 	ErrRedirectURIMismatch = errors.New("store: redirect uri is not registered for the client")
 
 	// ErrConsentNotFound means the principal has never granted this client, or the

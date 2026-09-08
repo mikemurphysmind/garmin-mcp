@@ -9,6 +9,8 @@ import (
 	"github.com/tamcore/garmin-mcp/internal/garmin/protocol"
 )
 
+const sentinelAllowedEmail = "a@example.com"
+
 func TestValidateAcceptsSafeStdioConfigurations(t *testing.T) {
 	t.Parallel()
 
@@ -127,6 +129,20 @@ func TestValidateRejectsUnsafeConfigurations(t *testing.T) {
 			mutate:   func(c *Config) { c.AllowInsecureHTTP = true },
 			sentinel: ErrInapplicableSetting,
 			field:    keyAllowInsecureHTTP,
+		},
+		{
+			name:     "stdio with a login allowlist",
+			base:     Default,
+			mutate:   func(c *Config) { c.LoginAllowedEmails = []string{sentinelAllowedEmail} },
+			sentinel: ErrInapplicableSetting,
+			field:    keyLoginAllowedEmails,
+		},
+		{
+			name:     "stdio with redirect wildcards enabled",
+			base:     Default,
+			mutate:   func(c *Config) { c.OAuthAllowRedirectWildcards = true },
+			sentinel: ErrInapplicableSetting,
+			field:    keyOAuthAllowRedirectWildcards,
 		},
 		{
 			name:     "destructive tier without the write tier",
@@ -279,5 +295,62 @@ func TestValidateRejectsUnsafeConfigurations(t *testing.T) {
 				t.Errorf("error %q does not name the offending setting %q", err.Error(), tc.field)
 			}
 		})
+	}
+}
+
+func TestValidateRefusesAMalformedAllowedEmail(t *testing.T) {
+	t.Parallel()
+
+	for name, entry := range map[string]string{
+		"no at sign":     "nobody",
+		"two at signs":   "a@b@example.com",
+		"empty local":    "@example.com",
+		"empty host":     "a@",
+		"host no dot":    "a@example",
+		"embedded space": "a b@example.com",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := remoteConfig()
+			cfg.LoginAllowedEmails = []string{entry}
+			if err := cfg.Validate(); !errors.Is(err, ErrInvalidConfig) {
+				t.Fatalf("Validate() error = %v, want ErrInvalidConfig", err)
+			}
+		})
+	}
+}
+
+func TestValidateRefusesADuplicateAllowedEmail(t *testing.T) {
+	t.Parallel()
+
+	cfg := remoteConfig()
+	cfg.LoginAllowedEmails = []string{sentinelAllowedEmail, "A@Example.com"}
+	if err := cfg.Validate(); !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("Validate() error = %v, want ErrInvalidConfig", err)
+	}
+}
+
+func TestValidateAcceptsAWellFormedAllowlist(t *testing.T) {
+	t.Parallel()
+
+	cfg := remoteConfig()
+	cfg.LoginAllowedEmails = []string{sentinelAllowedEmail, "b@example.org"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() on a well-formed allowlist: %v", err)
+	}
+}
+
+func TestValidationErrorsNeverCarryAnAllowlistedAddress(t *testing.T) {
+	t.Parallel()
+
+	cfg := remoteConfig()
+	cfg.LoginAllowedEmails = []string{"leaky@example.com@x"}
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("Validate() accepted a malformed address")
+	}
+	if strings.Contains(err.Error(), "leaky@example.com") {
+		t.Fatalf("the validation error leaked the address: %v", err)
 	}
 }

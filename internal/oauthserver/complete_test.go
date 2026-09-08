@@ -361,3 +361,58 @@ func TestGrantConsentOnAnExpiredTransactionIssuesNothing(t *testing.T) {
 		t.Fatal("an expired transaction persisted consent")
 	}
 }
+
+// TestConsentIsNotInheritedAcrossOnePattern pins that a wildcard redirect
+// pattern does not turn into a standing grant over every path it admits.
+// Client.MatchRedirectURI (client.go) returns the concrete presented URI, and
+// consent binds to that concrete redirect, not to the pattern: granting
+// consent for one concrete redirect under a pattern must leave a second,
+// different concrete redirect under the same pattern still requiring consent.
+func TestConsentIsNotInheritedAcrossOnePattern(t *testing.T) {
+	spec := publicClientSpec()
+	spec.RedirectURIs = []string{testWildcardRedirect}
+	spec.AllowWildcardRedirects = true
+	h := newHarness(t, spec)
+
+	wildcardRequest := func(redirect string) AuthorizeRequest {
+		return AuthorizeRequest{
+			ResponseType:        paramCode,
+			ClientID:            spec.ID,
+			RedirectURI:         redirect,
+			Scope:               testScopeProfile,
+			State:               testState,
+			CodeChallenge:       testChallenge(),
+			CodeChallengeMethod: string(MethodS256),
+			Resource:            testResourceURI,
+		}
+	}
+
+	first := wildcardRequest("https://chatgpt.com/cb/first") // consented
+	capability, _ := h.authenticated(t, first)
+	if _, err := h.srv.GrantConsent(t.Context(), capability); err != nil {
+		t.Fatalf("GrantConsent: %v", err)
+	}
+
+	// Positive control: the grant just made must actually cover the exact
+	// redirect it was granted for, or the negative check below would pass for
+	// the wrong reason (consent never landing at all rather than being
+	// correctly scoped).
+	repeatCapability, _ := h.authenticated(t, first)
+	repeatRequired, err := h.srv.ConsentRequired(t.Context(), repeatCapability)
+	if err != nil {
+		t.Fatalf("ConsentRequired (consented redirect): %v", err)
+	}
+	if repeatRequired {
+		t.Fatal("the granted consent did not take effect for the consented redirect")
+	}
+
+	second := wildcardRequest("https://chatgpt.com/cb/second") // not consented
+	secondCapability, _ := h.authenticated(t, second)
+	required, err := h.srv.ConsentRequired(t.Context(), secondCapability)
+	if err != nil {
+		t.Fatalf("ConsentRequired (other redirect): %v", err)
+	}
+	if !required {
+		t.Fatal("consent for one concrete redirect under a pattern was inherited by another")
+	}
+}

@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -65,27 +66,37 @@ func TestDefaultReturnsIndependentValues(t *testing.T) {
 	}
 }
 
+// TestCloneDoesNotShareSliceState walks every []string field on Config by
+// reflection, rather than naming a handful by hand, so a future field cannot
+// slip through Clone unnoticed the way LoginAllowedEmails once did.
 func TestCloneDoesNotShareSliceState(t *testing.T) {
 	t.Parallel()
 
-	original := Default()
-	original.ToolAllowlist = []string{toolActivities}
-	original.ToolDenylist = []string{toolDelete}
-	original.TrustedProxyCIDRs = []string{cidrPrivate}
+	stringSliceType := reflect.TypeFor[[]string]()
+	fields := reflect.VisibleFields(reflect.TypeFor[Config]())
 
-	clone := original.Clone()
-	clone.ToolAllowlist[0] = mutatedValue
-	clone.ToolDenylist[0] = mutatedValue
-	clone.TrustedProxyCIDRs[0] = mutatedValue
+	var checked int
+	for _, field := range fields {
+		if field.Type != stringSliceType {
+			continue
+		}
+		checked++
 
-	if original.ToolAllowlist[0] != toolActivities {
-		t.Error("Clone shares ToolAllowlist backing array")
+		original := Default()
+		originalVal := reflect.ValueOf(&original).Elem().FieldByIndex(field.Index)
+		originalVal.Set(reflect.ValueOf([]string{toolActivities}))
+
+		clone := original.Clone()
+		cloneVal := reflect.ValueOf(&clone).Elem().FieldByIndex(field.Index)
+		cloneVal.Index(0).SetString(mutatedValue)
+
+		if got := originalVal.Index(0).String(); got != toolActivities {
+			t.Errorf("Clone shares %s's backing array: original[0] = %q after mutating the clone", field.Name, got)
+		}
 	}
-	if original.ToolDenylist[0] != toolDelete {
-		t.Error("Clone shares ToolDenylist backing array")
-	}
-	if original.TrustedProxyCIDRs[0] != cidrPrivate {
-		t.Error("Clone shares TrustedProxyCIDRs backing array")
+
+	if checked == 0 {
+		t.Fatal("no []string field found on Config; the reflection walk is broken")
 	}
 }
 

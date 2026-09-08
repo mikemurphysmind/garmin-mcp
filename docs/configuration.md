@@ -116,6 +116,7 @@ the same moment it reads.
 | Key | Flag | Default | Applies to | Validation |
 |-----|------|---------|-----------|-----------|
 | `oauth-clients` | none | empty | remote | At least one entry is required for remote, at most 32. Rejected outright in stdio mode. |
+| `oauth-allow-redirect-wildcards` | `--oauth-allow-redirect-wildcards` | `false` | remote | **Unsafe. Read [the threat model](threat-model.md#2-authorization-code-state-pkce-csrf-redirect-and-refresh-token-replay) before setting it.** Admits one trailing-path wildcard redirect URI per client entry. Without it, a `redirect-uris` entry carrying `*` is rejected outright. |
 
 The registry is a list of records, so it has no flag: a command line cannot spell
 one record. Two spellings are accepted, and both parse to the same shape:
@@ -133,7 +134,7 @@ Each entry:
 |---------|----------|-----------|
 | `id` | yes | Unique in the registry, at most 256 bytes, no surrounding space, no control characters. This is the key reconciliation and every lookup use. |
 | `name` | no | At most 128 bytes, no control characters. Shown on the disclosure page. An empty name makes the page show the identifier. |
-| `redirect-uris` | yes | 1 to 8 exact URIs, at most 2048 bytes each. Absolute, with a host, no userinfo, no fragment, no `*`, no space and no control character. `https` always; `http` only for a **literal** loopback address. The name `localhost` is not accepted, because it resolves through a resolver an attacker may influence. The host must not be an IPv6 literal (`http://[::1]:port/...` or `https://[2001:db8::1]/...`): CSP3's `host-source` grammar has no production for a bracketed IPv6 literal, so a CSP-enforcing browser blocks the consent page's redirect to that client regardless of scheme; register a hostname, or an IPv4 loopback address such as `127.0.0.1`, instead. Matching at authorization time is byte-exact. |
+| `redirect-uris` | yes | 1 to 8 URIs, at most 2048 bytes each. Absolute, with a host, no userinfo, no fragment, no space and no control character. `https` always; `http` only for a **literal** loopback address. The name `localhost` is not accepted, because it resolves through a resolver an attacker may influence. The host must not be an IPv6 literal (`http://[::1]:port/...` or `https://[2001:db8::1]/...`): CSP3's `host-source` grammar has no production for a bracketed IPv6 literal, so a CSP-enforcing browser blocks the consent page's redirect to that client regardless of scheme; register a hostname, or an IPv4 loopback address such as `127.0.0.1`, instead. Matching at authorization time is byte-exact, **unless the entry is a trailing-path wildcard registered under `oauth-allow-redirect-wildcards` below** — without that setting, an entry carrying `*` is rejected outright. |
 | `scopes` | yes | At least one non-blank scope, at most 32, each at most 128 bytes. This is the widest set the client may ever be granted, and the deployment advertises the union of every client's scopes. Two names are meaningful to the tool policy: `garmin:write` gates the write tier and `garmin:destructive` gates the destructive tier, and neither implies the other. The read tier is not scope-gated, so a read-only client still needs a scope but the name is the operator's own; `garmin:read` is the convention this repository uses. |
 | `resources` | yes | 1 to 8 RFC 8707 resource indicators, same URI rules as a redirect URI. This is the audience a token is minted for. |
 | `public` | no | `true` selects token endpoint authentication method `none`, which is safe only because PKCE S256 is mandatory. A public client must carry no secret digest. |
@@ -170,6 +171,94 @@ oauth-clients:
       - https://mcp.example.invalid/mcp
     public: true
 ```
+
+#### Redirect wildcards
+
+A hosted MCP client can carry a per-installation or per-conversation callback
+path that the operator cannot predict, which byte-exact matching cannot serve
+without a redeploy per user. `oauth-allow-redirect-wildcards` admits exactly one
+shape of relief: a `redirect-uris` entry ending in `/*`, for example
+`https://chatgpt.com/a/b/c/*`. The grammar, exactly:
+
+- the `*` is the final byte, appears exactly once, and is immediately preceded
+  by `/`;
+- the prefix before it passes every rule an exact registration passes —
+  absolute, a host, `https` (or `http` only for a literal loopback address),
+  lower-case scheme, no userinfo, no fragment, no control byte, within the URI
+  length bound — and carries no query.
+
+Every other wildcard shape is refused: a host wildcard written any other way, a
+wildcard in the middle of a path, and more than one `*` all fail.
+
+A candidate redirect matches only when the bytes after the prefix are
+non-empty, are drawn from `A-Za-z0-9-._~/`, and contain no `.` segment, no `..`
+segment, and no empty segment. Two consequences worth registering exactly, not
+relying on the wildcard for: a candidate equal to the bare prefix does **not**
+match, and neither does a candidate ending in `/` — register those as their own
+exact `redirect-uris` entry if a client needs them.
+
+**This setting is unsafe.** It weakens an OAuth control this project otherwise
+treats as absolute. Read the residual risk in
+[the threat model](threat-model.md#2-authorization-code-state-pkce-csrf-redirect-and-refresh-token-replay)
+before setting it — in short, an open redirector or attacker-influenced content
+under the wildcarded prefix lets an attacker obtain a victim's authorization
+code, and PKCE does not stop it. The widest prefix the grammar admits,
+`https://host/*`, matches every path on that host — prefer the narrowest prefix
+that actually serves the client's callback path.
+
+Two layers check a pattern, on purpose: `internal/config` applies only the
+coarse rule above (the `*` is final and `/`-preceded, and the prefix passes the
+ordinary redirect rules), while `internal/oauthserver`'s `ParseRedirectPattern`
+is the authority on the finer grammar (the byte allowlist, the traversal
+refusal, prefix normalization). `internal/config` does not import a server
+package, so the check exists twice rather than once, shared. The visible
+consequence: a registration such as `https://host/a/../*` can pass configuration
+validation and then be refused at start-up by the client registry, with the more
+detailed message coming from that deeper layer. Start-up still fails closed —
+the message is just not the first check's.
+
+A resource indicator (`resources`) never admits a wildcard, with or without this
+setting.
+
+Every registered pattern is logged once at start-up, naming the client and the
+pattern, so an operator who set this months ago can still see what is live.
+
+### Login allowlist (remote)
+
+| Key | Flag | Default | Applies to | Validation |
+|-----|------|---------|-----------|-----------|
+| `login-allowed-emails` | *(none)* | empty | remote | Garmin account addresses, at most 256 entries, each at most 254 bytes, one `@` with a non-empty local part and a dotted host, no space or control character. A duplicate ignoring case is a configuration error, not a silent dedupe. |
+
+`login-allowed-emails` restricts which Garmin account may complete the **remote**
+browser login. Empty, the default, admits any account — an upgraded deployment
+that does not set this list behaves exactly as before. Comparison is
+case-insensitive over the trimmed address.
+
+This setting has deliberately no flag, unlike most others in this table. Every
+other layer of this branch treats an account address as unprintable —
+redaction reports a count, validation errors name positions, no log line names
+one — and a flag would undo all of that by publishing every allowlisted
+address into the process command line, readable by any local user. Set it
+through the configuration file or the environment instead.
+
+The check runs immediately before the Garmin login call, so a refused address
+costs the deployment zero requests to Garmin. The rendered response is not an
+enumeration oracle: a refused address sees the same generic message a
+Garmin-rejected credential produces, on the same page, with the same status and
+session state. It is not identical in *timing*: the allowlist refusal returns
+without a network round trip, while a wrong password pays a full HTTPS request
+to `sso.garmin.com`, so an unauthenticated caller can time the difference. That
+gap is the direct and unavoidable cost of never forwarding an unauthorized
+address upstream, and it is accepted rather than closed. A refused attempt still
+consumes one attempt from the transaction's budget. No error, log record, or
+rendered configuration ever names an address; validation failures and the
+redacted configuration report only how many entries the list carries. The local
+loopback login profile does not use this setting.
+
+**This is not a kill switch.** The list gates login, which is where a principal
+is created. Removing an address from the list does not end a principal that
+already exists — revoke that principal through the existing token and consent
+paths instead.
 
 ### Tool policy
 

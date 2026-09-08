@@ -129,6 +129,7 @@ func fromStore(store *viper.Viper) (Config, error) {
 		return Config{}, err
 	}
 	cfg.OAuthClients = clients
+	cfg.OAuthAllowRedirectWildcards = store.GetBool(keyOAuthAllowRedirectWildcards)
 	return cfg, nil
 }
 
@@ -176,6 +177,7 @@ func withPolicy(cfg Config, store *viper.Viper) Config {
 	out.EnableDestructiveTools = store.GetBool(keyEnableDestructiveTools)
 	out.ToolAllowlist = stringList(store, keyToolAllowlist)
 	out.ToolDenylist = stringList(store, keyToolDenylist)
+	out.LoginAllowedEmails = stringList(store, keyLoginAllowedEmails)
 	return out
 }
 

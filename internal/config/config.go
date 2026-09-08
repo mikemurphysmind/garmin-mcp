@@ -202,6 +202,18 @@ type Config struct {
 	// OAuthClients is the operator-registered OAuth client registry. A remote
 	// deployment requires at least one entry; no vendor client is ever defaulted.
 	OAuthClients []OAuthClient
+	// OAuthAllowRedirectWildcards admits a trailing-path wildcard in a client's
+	// registered redirect URIs. It is unsafe by design and default false: prefix
+	// matching means an open redirector or attacker-influenced content under the
+	// wildcarded prefix yields an authorization code. See docs/threat-model.md.
+	OAuthAllowRedirectWildcards bool
+
+	// LoginAllowedEmails restricts which Garmin accounts may complete the remote
+	// browser login. Empty admits any account, which is what a deployment that
+	// does not set it gets. It gates login, where a principal is created, and is
+	// not a kill switch: removing an address does not end a principal that
+	// already exists.
+	LoginAllowedEmails []string
 
 	// Region is the validated Garmin account region. It can only be produced by
 	// the protocol package's domain validation, so an unvalidated host cannot
@@ -287,6 +299,7 @@ func (c Config) Clone() Config {
 	out.OAuthClients = cloneClients(c.OAuthClients)
 	out.ToolAllowlist = copyStrings(c.ToolAllowlist)
 	out.ToolDenylist = copyStrings(c.ToolDenylist)
+	out.LoginAllowedEmails = copyStrings(c.LoginAllowedEmails)
 	return out
 }
 

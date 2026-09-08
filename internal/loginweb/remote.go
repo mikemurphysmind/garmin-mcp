@@ -148,6 +148,10 @@ type RemoteConfig struct {
 	Authorizations Authorizations
 	// Authenticator runs the Garmin login. Required.
 	Authenticator Authenticator
+	// AllowedEmails restricts which Garmin accounts may complete a login. The
+	// zero value is open and permits every address, which is what a deployment
+	// that does not set the setting gets.
+	AllowedEmails EmailAllowlist
 
 	// TTL caps one browser session's lifetime. The effective deadline is the
 	// earlier of this and the authorization transaction's own expiry. Zero means
@@ -179,6 +183,7 @@ type RemoteConfig struct {
 type RemoteServer struct {
 	authorizations Authorizations
 	authenticator  Authenticator
+	allowedEmails  EmailAllowlist
 	sessions       *sessionRegistry
 	pages          *pageSet
 	logger         *slog.Logger
@@ -214,6 +219,7 @@ func NewRemote(cfg RemoteConfig) (*RemoteServer, error) {
 	return &RemoteServer{
 		authorizations: cfg.Authorizations,
 		authenticator:  cfg.Authenticator,
+		allowedEmails:  cfg.AllowedEmails,
 		sessions:       newSessionRegistry(orInt(cfg.MaxSessions, DefaultMaxSessions)),
 		pages:          pages,
 		logger:         cfg.Logger,

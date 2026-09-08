@@ -71,6 +71,44 @@ func TestConfigRenderingStaysUseful(t *testing.T) {
 	}
 }
 
+func TestRedactedConfigCarriesTheWildcardAcknowledgement(t *testing.T) {
+	t.Parallel()
+
+	cfg := Default()
+	cfg.OAuthAllowRedirectWildcards = true
+
+	rendered := cfg.String()
+	if !strings.Contains(rendered, "oauthAllowRedirectWildcards") {
+		t.Fatalf("redacted output does not name the acknowledgement: %s", rendered)
+	}
+}
+
+// TestRedactedConfigCountsAllowedEmailsWithoutRenderingThem proves the login
+// allowlist is redacted by count, never by value: an address configured into
+// LoginAllowedEmails must never appear in rendered configuration output. It
+// covers every rendering path — String, GoString, MarshalJSON, and LogValue —
+// because TestNoCredentialFieldExists's LoginAllowedEmails exemption and
+// TestSecretSettingsHaveNoFlag's login-allowed-emails case both cite this test
+// as proof no address value is ever rendered, and a check of String alone would
+// not prove that for the other three.
+func TestRedactedConfigCountsAllowedEmailsWithoutRenderingThem(t *testing.T) {
+	t.Parallel()
+
+	cfg := Default()
+	cfg.LoginAllowedEmails = []string{"secret@example.com"}
+
+	renderings := configRenderings(t, cfg)
+
+	for name, rendered := range renderings {
+		if strings.Contains(rendered, "secret@example.com") {
+			t.Errorf("%s rendered an allowlisted address:\n%s", name, rendered)
+		}
+	}
+	if !strings.Contains(renderings["String()"], "loginAllowedEmailsLen") {
+		t.Fatalf("redacted output does not report the allowlist size: %s", renderings["String()"])
+	}
+}
+
 // TestNoCredentialFieldExists is the structural half of the credential rule: a
 // password or MFA code must not be representable in configuration at all, so no
 // amount of redaction is needed for one.
@@ -79,7 +117,18 @@ func TestNoCredentialFieldExists(t *testing.T) {
 
 	forbidden := []string{"password", "passwd", "mfa", "otp", "totp", "credential", "email", "username"}
 
+	// LoginAllowedEmails is exempted by exact equality, not by dropping "email"
+	// from forbidden: it carries an allowlist of account addresses, not a
+	// credential, is never a secret input, and
+	// TestRedactedConfigCountsAllowedEmailsWithoutRenderingThem proves no
+	// address value is ever rendered. A new email-shaped field must still fail
+	// this guard.
+	const safeEmailField = "LoginAllowedEmails"
+
 	for _, name := range fieldNames() {
+		if name == safeEmailField {
+			continue
+		}
 		lower := strings.ToLower(name)
 		for _, bad := range forbidden {
 			if strings.Contains(lower, bad) {

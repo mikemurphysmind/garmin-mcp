@@ -325,6 +325,157 @@ func TestIPv6LiteralRedirectErrorNamesTheRemedy(t *testing.T) {
 	}
 }
 
+// TestRedirectWildcardAcknowledgement proves the coarse admission gate: a
+// trailing-path pattern validates only with oauth-allow-redirect-wildcards set,
+// every other wildcard shape is refused regardless of the setting, a resource
+// indicator never admits one, and the ordinary origin rules still bind a
+// pattern's prefix.
+func TestRedirectWildcardAcknowledgement(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		allowWildcard bool
+		mutate        func(*Config)
+		wantErr       bool
+		sentinel      error
+	}{
+		{
+			name:          "a trailing-path pattern with the acknowledgement",
+			allowWildcard: true,
+			mutate: func(c *Config) {
+				client := publicClient()
+				client.RedirectURIs = []string{"https://client.example.test/cb/*"}
+				c.OAuthClients = []OAuthClient{client}
+			},
+			wantErr: false,
+		},
+		{
+			name:          "the same pattern without the acknowledgement",
+			allowWildcard: false,
+			mutate: func(c *Config) {
+				client := publicClient()
+				client.RedirectURIs = []string{"https://client.example.test/cb/*"}
+				c.OAuthClients = []OAuthClient{client}
+			},
+			wantErr:  true,
+			sentinel: ErrInvalidConfig,
+		},
+		{
+			name:          "a host wildcard with the acknowledgement",
+			allowWildcard: true,
+			mutate: func(c *Config) {
+				client := publicClient()
+				client.RedirectURIs = []string{"https://*.example.test/cb"}
+				c.OAuthClients = []OAuthClient{client}
+			},
+			wantErr:  true,
+			sentinel: ErrInvalidConfig,
+		},
+		{
+			name:          "a mid-path wildcard with the acknowledgement",
+			allowWildcard: true,
+			mutate: func(c *Config) {
+				client := publicClient()
+				client.RedirectURIs = []string{"https://client.example.test/a/*/b"}
+				c.OAuthClients = []OAuthClient{client}
+			},
+			wantErr:  true,
+			sentinel: ErrInvalidConfig,
+		},
+		{
+			name:          "a bare wildcard with the acknowledgement",
+			allowWildcard: true,
+			mutate: func(c *Config) {
+				client := publicClient()
+				client.RedirectURIs = []string{"*"}
+				c.OAuthClients = []OAuthClient{client}
+			},
+			wantErr:  true,
+			sentinel: ErrInvalidConfig,
+		},
+		{
+			name:          "two wildcards with the acknowledgement",
+			allowWildcard: true,
+			mutate: func(c *Config) {
+				client := publicClient()
+				client.RedirectURIs = []string{"https://client.example.test/a/*/b/*"}
+				c.OAuthClients = []OAuthClient{client}
+			},
+			wantErr:  true,
+			sentinel: ErrInvalidConfig,
+		},
+		{
+			name:          "a resource indicator wildcard with the acknowledgement",
+			allowWildcard: true,
+			mutate: func(c *Config) {
+				client := publicClient()
+				client.Resources = []string{"https://mcp.example.test/*"}
+				c.OAuthClients = []OAuthClient{client}
+			},
+			wantErr:  true,
+			sentinel: ErrInvalidConfig,
+		},
+		{
+			name:          "a cleartext non-loopback pattern with the acknowledgement",
+			allowWildcard: true,
+			mutate: func(c *Config) {
+				client := publicClient()
+				client.RedirectURIs = []string{"http://client.example.test/cb/*"}
+				c.OAuthClients = []OAuthClient{client}
+			},
+			wantErr:  true,
+			sentinel: ErrInsecureSetting,
+		},
+		{
+			name:          "a pattern with userinfo and the acknowledgement",
+			allowWildcard: true,
+			mutate: func(c *Config) {
+				client := publicClient()
+				client.RedirectURIs = []string{"https://user:pass@client.example.test/cb/*"}
+				c.OAuthClients = []OAuthClient{client}
+			},
+			wantErr:  true,
+			sentinel: ErrInvalidConfig,
+		},
+		{
+			name:          "a pattern with a fragment and the acknowledgement",
+			allowWildcard: true,
+			mutate: func(c *Config) {
+				client := publicClient()
+				client.RedirectURIs = []string{"https://client.example.test/cb/*#done"}
+				c.OAuthClients = []OAuthClient{client}
+			},
+			wantErr:  true,
+			sentinel: ErrInvalidConfig,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := remoteConfig()
+			cfg.OAuthAllowRedirectWildcards = tc.allowWildcard
+			tc.mutate(&cfg)
+
+			err := cfg.Validate()
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Validate() = nil, want an error")
+				}
+				if !errors.Is(err, tc.sentinel) {
+					t.Errorf("error %v does not match %v", err, tc.sentinel)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("Validate() = %v, want nil", err)
+			}
+		})
+	}
+}
+
 // TestRegistryKeysMatchTheWireShape keeps the documented sub-keys and the decoded
 // document from drifting apart. A struct tag cannot be a constant, so the two
 // spellings are compared here instead of shared.

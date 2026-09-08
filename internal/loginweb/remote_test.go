@@ -1,6 +1,8 @@
 package loginweb_test
 
 import (
+	"bytes"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -69,24 +71,41 @@ type remoteHarness struct {
 	clock  *testkit.FakeClock
 	server *loginweb.RemoteServer
 	b      *browser
+	// logs collects everything the server logged, so a test can assert an
+	// account address never appears in it.
+	logs *bytes.Buffer
 }
 
-func newRemote(t *testing.T, garmin *fakeAuthenticator) *remoteHarness {
+// newRemote builds one remote profile under test. Each opt, applied in order after
+// the defaults, may override any RemoteConfig field; a nil opt is a no-op, so
+// existing callers that pass none keep today's defaults unchanged.
+func newRemote(
+	t *testing.T, garmin *fakeAuthenticator, opts ...func(*loginweb.RemoteConfig),
+) *remoteHarness {
 	t.Helper()
 
 	clock := testkit.NewFakeClock(time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC))
 	authz := newFakeAuthorizations(clock.Now)
-	server, err := loginweb.NewRemote(loginweb.RemoteConfig{
+	logs := &bytes.Buffer{}
+	cfg := loginweb.RemoteConfig{
 		Authorizations: authz,
 		Authenticator:  garmin,
 		Now:            clock.Now,
-	})
+		Logger:         slog.New(slog.NewTextHandler(logs, nil)),
+	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&cfg)
+		}
+	}
+	server, err := loginweb.NewRemote(cfg)
 	if err != nil {
 		t.Fatalf("loginweb.NewRemote returned error: %v", err)
 	}
 	return &remoteHarness{
 		t: t, authz: authz, garmin: garmin, clock: clock, server: server,
-		b: newBrowser(t, server.Handler()),
+		logs: logs,
+		b:    newBrowser(t, server.Handler()),
 	}
 }
 
@@ -112,12 +131,20 @@ func (h *remoteHarness) continueToCredentials() string {
 func (h *remoteHarness) submitRemoteCredentials(form string) *http.Response {
 	h.t.Helper()
 
-	resp, _ := h.b.post(pathCredentials, url.Values{
-		fieldCSRF:     {csrfToken(h.t, form)},
-		fieldEmail:    {testEmail},
-		fieldPassword: {testPassword},
-	})
+	resp, _ := h.submitCredentialsAs(form, testEmail, testPassword)
 	return resp
+}
+
+// submitCredentialsAs posts the credential form with an arbitrary address, so a
+// test can drive the allowlist check with an address other than testEmail.
+func (h *remoteHarness) submitCredentialsAs(form, email, password string) (*http.Response, string) {
+	h.t.Helper()
+
+	return h.b.post(pathCredentials, url.Values{
+		fieldCSRF:     {csrfToken(h.t, form)},
+		fieldEmail:    {email},
+		fieldPassword: {password},
+	})
 }
 
 // reachConsent runs the whole flow up to the consent page and returns it.

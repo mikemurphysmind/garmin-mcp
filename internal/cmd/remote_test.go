@@ -290,6 +290,31 @@ func TestRemoteRefusesACleartextPublicURL(t *testing.T) {
 	}
 }
 
+// TestRemoteLoginServerCarriesTheConfiguredAllowlist proves the login allowlist
+// reaches the browser login server, and that a malformed list fails the whole
+// deployment rather than degrading to the open allowlist. config.Validate already
+// refuses a malformed entry at start-up; this is the defence-in-depth check that
+// newRemoteLoginServer itself is never reachable with a list that never passed
+// validation.
+func TestRemoteLoginServerCarriesTheConfiguredAllowlist(t *testing.T) {
+	broken := remoteConfig(t)
+	broken.LoginAllowedEmails = []string{"nobody"}
+	if remote, err := newRemoteDeployment(t.Context(), broken, &wiring{Logs: io.Discard}); err == nil {
+		_ = remote.close()
+		t.Fatal("a malformed allowlist built a remote deployment instead of failing")
+	}
+
+	valid := remoteConfig(t)
+	valid.LoginAllowedEmails = []string{"a@example.com"}
+	remote, err := newRemoteDeployment(t.Context(), valid, &wiring{Logs: io.Discard})
+	if err != nil {
+		t.Fatalf("a valid allowlist failed to build a remote deployment: %v", err)
+	}
+	if err := remote.close(); err != nil {
+		t.Errorf("close returned error: %v", err)
+	}
+}
+
 // TestRemoteReadsAConfidentialClientDigestFromItsFile proves the "-file" variant
 // is the working path, and that the digest never reaches a rendering.
 func TestRemoteReadsAConfidentialClientDigestFromItsFile(t *testing.T) {

@@ -292,3 +292,183 @@ func TestAuthorizeEndpointRefusesAPlainPKCEMethod(t *testing.T) {
 		t.Errorf("state = %q, want the client's own state echoed back", got)
 	}
 }
+
+// TestAPatternFailsStartUpWithoutTheAcknowledgement is the mutant this test
+// catches: a build that admitted a wildcard redirect registration regardless
+// of oauth-allow-redirect-wildcards — or that checked the setting somewhere
+// other than client construction, where a caller could bypass it — would
+// start up successfully with a pattern registered and no operator
+// acknowledgement, silently carrying the weaker matching rule the setting
+// exists to gate.
+func TestAPatternFailsStartUpWithoutTheAcknowledgement(t *testing.T) {
+	err := startRemoteServerExpectingFailure(t, remoteConfigOptions{
+		redirectURIs: []string{"https://client.example/cb/*"},
+	})
+	if err == nil {
+		t.Fatal("a pattern started up without the acknowledgement")
+	}
+}
+
+// TestAPatternStartsUpWithTheAcknowledgement is the positive control for
+// [TestAPatternFailsStartUpWithoutTheAcknowledgement]: the same pattern, with
+// oauth-allow-redirect-wildcards set, must start up successfully. Without this
+// test the negative case alone cannot distinguish "the acknowledgement gate
+// works" from "a registered pattern can never start up at all" — the defect
+// Task 12 found in internal/config's own, independent wildcard refusal, which
+// rejected a pattern whether or not the acknowledgement was set.
+func TestAPatternStartsUpWithTheAcknowledgement(t *testing.T) {
+	startRemoteServerCustomized(t, "", remoteConfigOptions{
+		redirectURIs: []string{"https://client.example/cb/*"},
+		extraLines:   []string{"oauth-allow-redirect-wildcards: true"},
+	}, nil)
+}
+
+// authorizeStatus drives a GET against /authorize for remoteClientID and
+// returns the response status and, when the response is a redirect, its
+// Location header. It never follows a redirect: both outcomes this file's
+// pattern tests care about — accepted (a 303 to the fixed login route) and
+// refused (a 400, rendered locally rather than redirected anywhere) — are
+// visible on the first response alone.
+func authorizeStatus(t *testing.T, server remoteServer, redirectURI, challenge string) (status int, location string) {
+	t.Helper()
+
+	query := url.Values{}
+	query.Set("response_type", "code")
+	query.Set("client_id", remoteClientID)
+	query.Set("redirect_uri", redirectURI)
+	query.Set("scope", remoteScope)
+	query.Set("state", "e2e-pattern-state")
+	query.Set("resource", server.mcpURL)
+	query.Set("code_challenge_method", "S256")
+	query.Set("code_challenge", challenge)
+
+	noRedirect := &http.Client{
+		Transport:     server.client.Transport,
+		Timeout:       server.client.Timeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	response, err := noRedirect.Get(server.origin + "/authorize?" + query.Encode())
+	if err != nil {
+		t.Fatalf("get /authorize: %v", err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	return response.StatusCode, response.Header.Get("Location")
+}
+
+// TestAuthorizationSucceedsThroughARedirectPattern proves the
+// oauth-allow-redirect-wildcards feature end to end over the real binary,
+// now that internal/config's own coarse wildcard gate (fixed in
+// b092961) actually admits a pattern behind the acknowledgement: a client
+// registered with a trailing-path pattern ("https://client.example/cb/*")
+// admits a concrete redirect the configuration never names, that acceptance
+// happens at /authorize itself (not merely somewhere downstream), the code
+// and token that follow are bound to the exact concrete URI rather than to
+// the pattern or to any other URI the same pattern would also admit, and a
+// traversal remainder that matches the pattern's prefix bytes is refused
+// locally rather than redirected anywhere.
+//
+// The client row is seeded once, via seedClient, purely to satisfy the
+// auth_codes foreign key before the server process starts (see the note atop
+// seed_test.go); its redirect URI list is irrelevant, because the server's
+// own start-up reconciliation (internal/store, ReconcileClient) overwrites it
+// from this deployment's own configuration the moment the process launches —
+// which is what actually registers the pattern this test exercises.
+func TestAuthorizationSucceedsThroughARedirectPattern(t *testing.T) {
+	const concreteRedirect = "https://client.example/cb/session-42"
+	const otherRedirect = "https://client.example/cb/other-session"
+	const traversalRedirect = "https://client.example/cb/../../evil"
+
+	verifier, challenge := pkcePair(t)
+	var code, otherCode string
+	server := startRemoteServerCustomized(t, "", remoteConfigOptions{
+		redirectURIs: []string{"https://client.example/cb/*"},
+		extraLines:   []string{"oauth-allow-redirect-wildcards: true"},
+	}, func(dir, origin string) {
+		sqlite := openSeedStore(t, dir)
+		defer func() { _ = sqlite.Close() }()
+
+		seedClient(t, sqlite)
+		principalID := seedPrincipal(t, sqlite, "e2e-pattern@example.test")
+
+		params := seedAuthCodeParams{
+			principalID: principalID,
+			clientID:    remoteClientID,
+			redirectURI: concreteRedirect,
+			resource:    mcpURLFor(origin),
+			scopes:      []string{remoteScope},
+			challenge:   challenge,
+		}
+		seedConsent(t, sqlite, params)
+		code = seedAuthCode(t, sqlite, params)
+
+		// A second code, consented and bound to a different concrete URI that
+		// the identical pattern would also admit. It exists to prove the
+		// token endpoint binds to the one exact URI a code was issued for,
+		// not merely to "some URI the pattern matches" (see the
+		// "token binds to the concrete redirect" subtest below).
+		otherParams := params
+		otherParams.redirectURI = otherRedirect
+		seedConsent(t, sqlite, otherParams)
+		otherCode = seedAuthCode(t, sqlite, otherParams)
+	})
+
+	t.Run("authorize accepts a concrete redirect under the pattern", func(t *testing.T) {
+		// Acceptance means resolveClientAndRedirect's MatchRedirectURI found
+		// the wildcard match and opened a transaction (303 to the fixed login
+		// route), rather than refusing locally with a 400. A build that
+		// disabled wildcard matching, or that ignored
+		// oauth-allow-redirect-wildcards once past start-up, fails this.
+		status, location := authorizeStatus(t, server, concreteRedirect, challenge)
+		if status != http.StatusSeeOther {
+			t.Fatalf("status = %d, want 303 for a concrete redirect under a registered pattern",
+				status)
+		}
+		if location != "/login" {
+			t.Errorf("Location = %q, want the fixed login route", location)
+		}
+	})
+
+	t.Run("token binds to the concrete redirect, not the pattern", func(t *testing.T) {
+		// otherCode was issued for otherRedirect. Presenting it with
+		// concreteRedirect instead exercises exactly the same byte-exact
+		// comparison codegrant.go always applies (proven independently by
+		// TestTokenEndpointRequiresTheExactRedirectURI); here the point is
+		// that the comparison happens even though both URIs are admitted by
+		// the very same pattern, so a build that bound a code to the pattern
+		// string, or to the client generally, rather than the concrete
+		// presented URI, would let this redemption succeed and this test
+		// catches that.
+		mismatchForm := tokenForm(otherCode, concreteRedirect, verifier)
+		response, body := postToken(t, server, mismatchForm)
+		if response.StatusCode != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400 for a code redeemed against a different concrete URI "+
+				"under the same pattern (error %s)", response.StatusCode, safeTokenFailure(body))
+		}
+		if failure := decodeTokenError(t, body); failure.Error != "invalid_grant" {
+			t.Errorf("error = %q, want invalid_grant", failure.Error)
+		}
+
+		// The positive control: the code redeemed against the exact URI it
+		// was issued for succeeds and yields a usable token.
+		success := redeemForToken(t, server, tokenForm(code, concreteRedirect, verifier))
+		if success.AccessToken == "" {
+			t.Fatal("a concrete redirect under a registered pattern did not yield a token")
+		}
+	})
+
+	t.Run("a traversal redirect is refused locally, not redirected", func(t *testing.T) {
+		// The traversal remainder matches the pattern's prefix bytes, but
+		// isSafePathRemainder (internal/oauthserver/redirectpattern.go)
+		// refuses it before any redirect target can be built, so this must
+		// be a local 400 with no Location header — never a redirect toward
+		// the traversal target, and never a 303 into the login flow either.
+		status, location := authorizeStatus(t, server, traversalRedirect, challenge)
+		if status != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400 for a traversal redirect that matches the prefix bytes",
+				status)
+		}
+		if location != "" {
+			t.Errorf("Location = %q, want no redirect for a refused traversal", location)
+		}
+	})
+}
