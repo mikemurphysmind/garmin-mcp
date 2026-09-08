@@ -44,31 +44,31 @@ commit subjects, and this table is the durable record.
 
 ## Measured coverage
 
-Statement coverage from `go test -count=1 -cover ./...`. The tree was measured on
-2026-08-18; `internal/garmin/api`, `internal/garmin/client` and `internal/tools` were
-re-measured on 2026-09-01, when the post-pin tools landed.
+Statement coverage from `go test -count=1 -cover ./...`. The whole tree was
+re-measured on 2026-09-08, after the over-engineering sweep removed unreachable
+code and the tests that only covered it.
 
 | Package | Untagged |
 |---------|----------|
-| `internal/cmd` | 82.1% |
-| `internal/config` | 90.8% |
-| `internal/cryptostore` | 87.5% |
+| `internal/cmd` | 84.0% |
+| `internal/config` | 91.7% |
+| `internal/cryptostore` | 87.2% |
 | `internal/garmin/api` | 86.3% |
-| `internal/garmin/auth` | 65.9% (88.3% with `-tags=fakegarmin`) |
+| `internal/garmin/auth` | 66.3% (90.2% with `-tags=fakegarmin`) |
 | `internal/garmin/client` | 94.9% |
 | `internal/garmin/protocol` | 96.7% |
 | `internal/identity` | 97.7% |
-| `internal/loginweb` | 82.6% |
-| `internal/mcpserver` | 89.3% |
-| `internal/notices` | 89.3% |
-| `internal/oauthserver` | 92.4% |
-| `internal/oauthstore` | 84.6% |
-| `internal/policy` | 91.7% |
-| `internal/ratelimit` | 94.8% |
-| `internal/securefile` | 85.8% |
-| `internal/store` | 82.9% |
-| `internal/testkit` | 91.5% |
-| `internal/tokenlink` | 80.0% |
+| `internal/loginweb` | 87.4% |
+| `internal/mcpserver` | 90.3% |
+| `internal/notices` | 92.8% |
+| `internal/oauthserver` | 93.1% |
+| `internal/oauthstore` | 85.0% |
+| `internal/policy` | 95.4% |
+| `internal/ratelimit` | 95.9% |
+| `internal/securefile` | 86.0% |
+| `internal/store` | 83.4% |
+| `internal/testkit` | 92.0% |
+| `internal/tokenlink` | 88.0% |
 | `internal/tools` | 86.2% |
 | `migrations` | 100.0% |
 

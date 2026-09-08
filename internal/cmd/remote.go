@@ -15,6 +15,7 @@ import (
 	"github.com/tamcore/garmin-mcp/internal/policy"
 	"github.com/tamcore/garmin-mcp/internal/ratelimit"
 	"github.com/tamcore/garmin-mcp/internal/store"
+	"github.com/tamcore/garmin-mcp/internal/tokenlink"
 )
 
 // resourceName is the human-readable name of this protected resource, as it
@@ -246,7 +247,7 @@ func newRemoteGraph(
 	cfg config.Config, w *wiring, paths statePaths,
 	sqlite *store.SQLiteStore, authorizer *mcpserver.OAuthAuthorizer,
 ) (*dependencies, error) {
-	sqliteTokens, err := newSQLiteTokens(sqlite)
+	sqliteTokens, err := tokenlink.New(sqlite)
 	if err != nil {
 		return nil, err
 	}

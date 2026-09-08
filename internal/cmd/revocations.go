@@ -21,7 +21,8 @@ const revocationBufferSize = 256
 // It is the composition root's join between two packages that must not know each
 // other: internal/store announces what it revoked, internal/mcpserver terminates
 // the sessions a revocation covers, and neither imports the other. That is the same
-// rule sqliteTokens follows, and this is the one place that may know both sides.
+// rule internal/tokenlink follows, and this is the one place that may know both
+// sides.
 //
 // # Delivery
 //

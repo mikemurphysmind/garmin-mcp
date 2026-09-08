@@ -13,10 +13,9 @@ import (
 	"time"
 
 	"github.com/tamcore/garmin-mcp/internal/config"
-	"github.com/tamcore/garmin-mcp/internal/garmin/auth"
 	"github.com/tamcore/garmin-mcp/internal/oauthserver"
 	"github.com/tamcore/garmin-mcp/internal/ratelimit"
-	"github.com/tamcore/garmin-mcp/internal/store"
+	"github.com/tamcore/garmin-mcp/internal/tokenlink"
 )
 
 // TestTheOutboundClientNeverFollowsARedirect is a security property rather than a
@@ -102,69 +101,6 @@ func TestTheKeyDirectoryFollowsTheConfiguredKeyFile(t *testing.T) {
 	}
 }
 
-// TestTokenErrorsAreComparableInBothPackages keeps the storage sentinels usable by
-// the consumer that never imports the store: the mapped error must match the
-// consumer's sentinel and still match the storage one, because a caller that lost
-// either would be reduced to comparing messages.
-func TestTokenErrorsAreComparableInBothPackages(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]struct {
-		from error
-		want error
-	}{
-		string(stateAbsent): {from: store.ErrNoTokens, want: auth.ErrNoTokens},
-		"conflict":          {from: store.ErrVersionConflict, want: auth.ErrVersionConflict},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			got := translateTokenError(tc.from)
-			if !errors.Is(got, tc.want) {
-				t.Errorf("%v does not match the consumer sentinel %v", got, tc.want)
-			}
-			if !errors.Is(got, tc.from) {
-				t.Errorf("%v no longer matches the storage sentinel %v", got, tc.from)
-			}
-		})
-	}
-
-	if translateTokenError(nil) != nil {
-		t.Error("a nil error was translated into a failure")
-	}
-	other := errors.New("something else")
-	if !errors.Is(translateTokenError(other), other) {
-		t.Error("an unrecognized error was not passed through")
-	}
-}
-
-// TestTokenSetConversionKeepsTheZeroValueZero keeps an absent record from becoming
-// a set of empty credentials, which would then be presented to Garmin as if it
-// were one.
-func TestTokenSetConversionKeepsTheZeroValueZero(t *testing.T) {
-	t.Parallel()
-
-	if !authTokenSet(store.TokenSet{}).IsZero() {
-		t.Error("an absent stored set became a non-zero credential set")
-	}
-	if !storeTokenSet(auth.TokenSet{}).IsZero() {
-		t.Error("an absent credential set became a non-zero stored set")
-	}
-
-	expiry := time.Unix(0, 0).UTC()
-	stored := store.NewTokenSet(
-		"synthetic-di-token", "synthetic-refresh", "synthetic-client", expiry)
-
-	round := storeTokenSet(authTokenSet(stored))
-	if round.Token() != stored.Token() || round.RefreshToken() != stored.RefreshToken() {
-		t.Error("the round trip did not preserve the token material")
-	}
-	if !round.ExpiresAt().Equal(expiry) {
-		t.Errorf("ExpiresAt = %v, want %v", round.ExpiresAt(), expiry)
-	}
-}
-
 // TestSanitizedCauseStaysOnOneLine keeps a multi-line cause from breaking the
 // diagnostic report's one-line-per-check shape.
 func TestSanitizedCauseStaysOnOneLine(t *testing.T) {
@@ -213,8 +149,8 @@ func TestAPublicURLThatCannotCarryATokenIsRefused(t *testing.T) {
 func TestAComponentBuiltWithoutItsDependencyIsRefused(t *testing.T) {
 	t.Parallel()
 
-	if _, err := newSQLiteTokens(nil); err == nil {
-		t.Error("a token store was adapted from no database")
+	if _, err := tokenlink.New(nil); err == nil {
+		t.Error("a token store was adapted from no backend")
 	}
 	if _, err := newGrantedScopes(nil); err == nil {
 		t.Error("a scope source was built without an authorizer")

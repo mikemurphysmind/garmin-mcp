@@ -34,7 +34,7 @@ Garth, no Python subprocess.
 
 ## Current state [NOW]
 
-As of 2026-08-16 the repository contains the following Go code. Coverage is the
+As of 2026-09-08 the repository contains the following Go code. Coverage is the
 statement coverage reported by `go test -count=1 -cover ./...`, measured on that
 date.
 
@@ -42,29 +42,29 @@ date.
 |------|---------------|----------|
 | `cmd/garmin-mcp/main.go` | Thin `main`: passes the ldflags-injected `version` and `commit` into `cmd.Execute` and calls `os.Exit` with the returned code | n/a |
 | `cmd/notices/main.go` | Thin `main` for the notices generator: flags, then `notices.Generate`. A maintenance tool, never linked into `garmin-mcp` | n/a |
-| `internal/cmd` | Cobra tree and the composition root. `serve` (stdio and streamable-http), `auth`, `doctor`, `version`, `tools list` and `migrate` all do real work; no command returns a not-implemented sentinel | 81.9% |
-| `internal/config` | `Config`, deterministic four-layer precedence, `_FILE` secret variants, full lexical validation, redacted output, the operator OAuth client registry, the coarse redirect-wildcard gate, and the login allowlist's lexical validation | 90.8% |
-| `internal/garmin/protocol` | Garmin host/path/endpoint-label constants, client identities, DI client-ID candidates, the login response classifier (JSON and widget HTML), the rejected-OTP outcome, and the widget MFA variable parse. No I/O | 96.6% |
-| `internal/garmin/auth` | Login state machine, strategy fallback, bounded MFA transaction registry with a single completion lease, DI ticket exchange, session validation, explicit widget MFA code delivery, refresh with per-principal collapsing and CAS, the shared `TokenGate`, the request-time host guard, unverified-JWT `exp` parsing | 65.9% untagged, 88.3% with `-tags=fakegarmin` |
-| `internal/garmin/client` | The authenticated request layer: bounded wire and decompressed sizes, page and page-start caps, one bounded post-`401` retry that never replays a `POST` or `PATCH`, typed errors, and the exact-integer accessor an identifier is compared through | 94.3% |
-| `internal/garmin/api` | Domain clients — activities, analysis, splits, profile, workouts, gear, strength writes, downloads, the published exercise catalog with its compiled-in fallback, FIT activity decoding through `github.com/muktihari/fit`, the training scores, thresholds and trends, nutrition, challenges and badges, and the device inventory | 90.7% |
-| `internal/mcpserver` | Server, registry, stdio and Streamable HTTP transports, bearer middleware, session binding, origin and forwarded-header guards, elicitation confirmation, `server_info` | 89.3% |
-| `internal/resources` | The five constant MCP documents — four workout templates and the structure reference — with the manifest contract, the render, and the check that this server's own upload path accepts every template | 95.7% |
-| `internal/tools` | 144 registered tools — 100 read-only, 35 write, 9 destructive — the whole pinned manifest bar one documented refusal, with contracts snapshot-tested against `compat/tools.json` | 85.8% |
-| `internal/policy` | Three tiers, explicit name lists validated against the registered set at start-up, local operator authority, the remote enablement-and-scope intersection, confirmation requirement | 91.7% |
+| `internal/cmd` | Cobra tree and the composition root. `serve` (stdio and streamable-http), `auth`, `doctor`, `version`, `tools list` and `migrate` all do real work; no command returns a not-implemented sentinel | 84.0% |
+| `internal/config` | `Config`, deterministic four-layer precedence, `_FILE` secret variants, full lexical validation, redacted output, the operator OAuth client registry, the coarse redirect-wildcard gate, and the login allowlist's lexical validation | 91.7% |
+| `internal/garmin/protocol` | Garmin host/path/endpoint-label constants, client identities, DI client-ID candidates, the login response classifier (JSON and widget HTML), the rejected-OTP outcome, and the widget MFA variable parse. No I/O | 96.7% |
+| `internal/garmin/auth` | Login state machine, strategy fallback, bounded MFA transaction registry with a single completion lease, DI ticket exchange, session validation, explicit widget MFA code delivery, refresh with per-principal collapsing and CAS, the shared `TokenGate`, the request-time host guard, unverified-JWT `exp` parsing | 66.3% untagged, 90.2% with `-tags=fakegarmin` |
+| `internal/garmin/client` | The authenticated request layer: bounded wire and decompressed sizes, page and page-start caps, one bounded post-`401` retry that never replays a `POST` or `PATCH`, typed errors, and the exact-integer accessor an identifier is compared through | 94.9% |
+| `internal/garmin/api` | Domain clients — activities, analysis, splits, profile, workouts, gear, strength writes, downloads, the published exercise catalog with its compiled-in fallback, FIT activity decoding through `github.com/muktihari/fit`, the training scores, thresholds and trends, nutrition, challenges and badges, and the device inventory | 86.3% |
+| `internal/mcpserver` | Server, registry, stdio and Streamable HTTP transports, bearer middleware, session binding, origin and forwarded-header guards, elicitation confirmation, `server_info` | 90.3% |
+| `internal/resources` | The five constant MCP documents — four workout templates and the structure reference — with the manifest contract, the render, and the check that this server's own upload path accepts every template | 96.8% |
+| `internal/tools` | 144 registered tools — 100 read-only, 35 write, 9 destructive — the whole pinned manifest bar one documented refusal, with contracts snapshot-tested against `compat/tools.json` | 86.2% |
+| `internal/policy` | Three tiers, explicit name lists validated against the registered set at start-up, local operator authority, the remote enablement-and-scope intersection, confirmation requirement | 95.4% |
 | `internal/identity` | Principal type, request context, and the bearer resolver that takes the principal only from a verified token | 97.7% |
-| `internal/oauthserver` | The authorization server: PKCE S256 only, exact issuer matching, redirect matching that is exact by default and admits one opt-in trailing-path wildcard per client (`RedirectPattern`), single-use bound codes, hashed opaque tokens, rotating refresh with family revocation, consent bound to the concrete presented redirect | 92.4% |
-| `internal/oauthstore` | The adapter from the authorization server's `Store` interface onto the SQLite store, with a compile-time assertion and five contention tests | 84.6% |
-| `internal/store` | `FileStore` for stdio, plus the migration-backed SQLite backend for remote: principals, encrypted DI token sets with CAS, clients, consents, hashed transactions and codes, token families, audit events. The database file and its `-wal`/`-shm` sidecars are verified before the driver ever opens them | 83.1% |
+| `internal/oauthserver` | The authorization server: PKCE S256 only, exact issuer matching, redirect matching that is exact by default and admits one opt-in trailing-path wildcard per client (`RedirectPattern`), single-use bound codes, hashed opaque tokens, rotating refresh with family revocation, consent bound to the concrete presented redirect | 93.1% |
+| `internal/oauthstore` | The adapter from the authorization server's `Store` interface onto the SQLite store, with a compile-time assertion and five contention tests | 85.0% |
+| `internal/store` | `FileStore` for stdio, plus the migration-backed SQLite backend for remote: principals, encrypted DI token sets with CAS, clients, consents, hashed transactions and codes, token families, audit events. The database file and its `-wal`/`-shm` sidecars are verified before the driver ever opens them | 83.4% |
 | `migrations` | The embedded, checksummed, monotonic SQL migrations `0001_initial.sql` and `0002_oauth_contract.sql` | 100.0% |
-| `internal/cryptostore` | AES-256-GCM envelope encryption with versioned key IDs and principal/record-type AAD, and an owner-only key file. `LoadKey` verifies the key directory's ownership and mode on every read | 87.5% |
-| `internal/securefile` | The shared filesystem hardening every store uses: `os.Root` component-by-component path resolution, post-open identity verification, link-based exclusive install, non-blocking regular-file reads, owner-only modes, and descriptor-based ownership verification (`st_uid == euid`) for both files and directories | 85.8% |
-| `internal/tokenlink` | `Store`, the adapter that makes a `*store.FileStore` satisfy `auth.TokenStore` by converting between the two packages' `TokenSet` types | 80.0% |
-| `internal/loginweb` | The browser login flow in two profiles: the one-shot loopback profile and the remote profile with the `__Host-` cookie, HSTS, disclosure page, independent CSRF token, server-held MFA continuation, and an opt-in login allowlist (`EmailAllowlist`) checked before the Garmin call | 82.6% |
-| `internal/mcplog` | Structured `slog` logging with the allowlisted field set, level mapping, and the stderr sink that refuses stdout | 98.5% |
-| `internal/notices` | The `THIRD_PARTY_NOTICES.md` generator: the linked module set unioned over the six released targets, the curated SPDX and licence-file registry, verbatim licence copying, and the freshness test that fails on a stale notices file | 89.3% |
-| `internal/ratelimit` | The per-principal limiter and its handler middleware | 94.8% |
-| `internal/testkit` | Scripted fake Garmin service, fake clock, fixtures, synthetic FIT builder, transport guard | 91.5% |
+| `internal/cryptostore` | AES-256-GCM envelope encryption with versioned key IDs and principal/record-type AAD, and an owner-only key file. `LoadKey` verifies the key directory's ownership and mode on every read | 87.2% |
+| `internal/securefile` | The shared filesystem hardening every store uses: `os.Root` component-by-component path resolution, post-open identity verification, link-based exclusive install, non-blocking regular-file reads, owner-only modes, and descriptor-based ownership verification (`st_uid == euid`) for both files and directories | 86.0% |
+| `internal/tokenlink` | `Store`, the one adapter that makes either store — the file store for stdio, the SQLite store for remote — satisfy `auth.TokenStore` by converting between the two packages' `TokenSet` types | 88.0% |
+| `internal/loginweb` | The browser login flow in two profiles: the one-shot loopback profile and the remote profile with the `__Host-` cookie, HSTS, disclosure page, independent CSRF token, server-held MFA continuation, and an opt-in login allowlist (`EmailAllowlist`) checked before the Garmin call | 87.4% |
+| `internal/mcplog` | Structured `slog` logging with the allowlisted field set, level mapping, and the single constructor that refuses stdout as a sink | 95.3% |
+| `internal/notices` | The `THIRD_PARTY_NOTICES.md` generator: the linked module set unioned over the six released targets, the curated SPDX and licence-file registry, verbatim licence copying, and the freshness test that fails on a stale notices file | 92.8% |
+| `internal/ratelimit` | The per-principal limiter and its handler middleware | 95.9% |
+| `internal/testkit` | Scripted fake Garmin service, fake clock, fixtures, synthetic FIT builder, transport guard | 92.0% |
 | `e2e` | Build tag `e2e`. `cli_test.go` builds the binary and drives it as a subprocess: version output, clean stdout on the stdio path, unknown command | n/a |
 | `live` | Build tag `garminlive`. The opt-in suite against the real Garmin service: one shared login; a read half behind three gates whose caller admits only reads and the GraphQL query documents the request layer itself renders; and a write half behind a fourth gate whose caller mutates only objects a verifying ownership ledger holds. Carries the FIT-against-summary agreement, tool-against-domain-client agreement, the read-only surface sweep in three halves (account, health, training), and the write and destructive surface end to end. Never in CI | n/a |
 
@@ -73,8 +73,8 @@ Everything else in the repository is documentation, contract manifests
 
 Every package in the untagged profile is at or above the 80% rule below.
 `internal/garmin/auth` is the one exception CI carries on merit: its login, MFA
-and refresh paths are tagged `fakegarmin`, so the untagged profile sees 65.9% and
-the tagged job reports 88.3%. `cmd/garmin-mcp` is the other, because it is the
+and refresh paths are tagged `fakegarmin`, so the untagged profile sees 66.3% and
+the tagged job reports 90.2%. `cmd/garmin-mcp` is the other, because it is the
 process entry point and the `e2e` job runs the built command instead. CI enforces
 the floor per package against that explicit list in both directions, so a package
 that drops under it fails the build and a listed package that reaches it must

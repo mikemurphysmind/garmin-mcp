@@ -9,6 +9,7 @@ import (
 	"github.com/tamcore/garmin-mcp/internal/garmin/auth"
 	"github.com/tamcore/garmin-mcp/internal/loginweb"
 	"github.com/tamcore/garmin-mcp/internal/store"
+	"github.com/tamcore/garmin-mcp/internal/tokenlink"
 )
 
 // Bounds on the pending-login registry. They mirror the login transaction's own
@@ -209,7 +210,7 @@ func (r *remoteLogin) bind(
 		Account:     account,
 		Email:       email,
 		DisplayName: result.GarminDisplayName(),
-		Tokens:      storeTokenSet(set),
+		Tokens:      tokenlink.StoreTokenSet(set),
 	})
 	if err != nil {
 		return "", fmt.Errorf("binding the garmin account: %w", err)

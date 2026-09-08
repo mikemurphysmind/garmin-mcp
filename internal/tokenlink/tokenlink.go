@@ -1,17 +1,21 @@
 // Package tokenlink joins the Garmin DI token consumer to its persistence.
 //
 // internal/garmin/auth declares the TokenStore interface it needs, and
-// internal/store implements the same method set over encrypted owner-only files.
-// The two do not unify on their own: each package owns its own TokenSet type, so
-// auth.TokenStore and the FileStore method set are structurally identical but not
-// assignable. Neither package may import the other — auth is the consumer and
-// must not depend on a storage implementation, and store must not depend on its
-// consumer — so the adapter belongs here, in a wiring package both sides can stay
-// ignorant of.
+// internal/store implements the same method set — over encrypted owner-only
+// files for stdio, and over SQLite for remote. The two sides do not unify on
+// their own: each package owns its own TokenSet type, so auth.TokenStore and a
+// store method set are structurally identical but not assignable. Neither
+// package may import the other — auth is the consumer and must not depend on a
+// storage implementation, and store must not depend on its consumer — so the
+// adapter belongs here, in a wiring package both sides can stay ignorant of.
+//
+// One adapter serves both backends. They differ only in which type answers, and
+// a second copy of the conversions would be a second place for the error
+// translation below to drift.
 //
 // The compile-time assertion below is the point of this package: it turns the
-// claim "the file store satisfies the auth interface" into a build error when it
-// stops being true, instead of a comment that drifts.
+// claim "a store satisfies the auth interface" into a build error when it stops
+// being true, instead of a comment that drifts.
 package tokenlink
 
 import (
@@ -23,9 +27,18 @@ import (
 	"github.com/tamcore/garmin-mcp/internal/store"
 )
 
-// Store adapts a store.FileStore to the auth.TokenStore interface.
+// A Backend is the token persistence this adapter wraps. Both
+// *store.FileStore and *store.SQLiteStore satisfy it, which is why the
+// interface is declared here, beside its consumer, rather than in store.
+type Backend interface {
+	Load(ctx context.Context, principal string) (store.TokenSet, int64, error)
+	Save(ctx context.Context, principal string, set store.TokenSet, expectedVersion int64) (int64, error)
+	Delete(ctx context.Context, principal string) error
+}
+
+// Store adapts a Backend to the auth.TokenStore interface.
 type Store struct {
-	files *store.FileStore
+	files Backend
 }
 
 // Assert the adapter satisfies the consumer's interface at build time.
@@ -34,9 +47,9 @@ var _ auth.TokenStore = (*Store)(nil)
 // New returns a TokenStore backed by files. It reports an error rather than
 // panicking on a nil store, because the caller is start-up wiring that must fail
 // closed.
-func New(files *store.FileStore) (*Store, error) {
+func New(files Backend) (*Store, error) {
 	if files == nil {
-		return nil, errors.New("tokenlink: nil file store")
+		return nil, errors.New("tokenlink: nil token store backend")
 	}
 
 	return &Store{files: files}, nil
@@ -59,7 +72,7 @@ func (s *Store) Load(ctx context.Context, principal string) (auth.TokenSet, int6
 // record must not exist yet. A stale version yields an error satisfying
 // errors.Is(err, auth.ErrVersionConflict).
 func (s *Store) Save(ctx context.Context, principal string, set auth.TokenSet, expectedVersion int64) (int64, error) {
-	version, err := s.files.Save(ctx, principal, toStore(set), expectedVersion)
+	version, err := s.files.Save(ctx, principal, StoreTokenSet(set), expectedVersion)
 	if err != nil {
 		return 0, translate(err)
 	}
@@ -90,8 +103,10 @@ func toAuth(set store.TokenSet) auth.TokenSet {
 	return auth.NewTokenSet(set.Token(), set.RefreshToken(), set.ClientID(), set.ExpiresAt())
 }
 
-// toStore converts the consumer's token set into the storage type.
-func toStore(set auth.TokenSet) store.TokenSet {
+// StoreTokenSet converts the consumer's token set into the storage type. It is
+// exported for the remote login flow, which hands a freshly logged-in set to the
+// principal directory rather than through this adapter's Save.
+func StoreTokenSet(set auth.TokenSet) store.TokenSet {
 	if set.IsZero() {
 		return store.TokenSet{}
 	}
