@@ -8,7 +8,7 @@ Every stopping point updates this file in the same commit as the work it
 describes. Never mark an item done on the strength of a placeholder or
 `not implemented` handler.
 
-Last updated: 2026-08-27.
+Last updated: 2026-09-08.
 
 ## Phase status
 
@@ -74,6 +74,68 @@ code and the tests that only covered it.
 
 Every package is at or above the 80% floor `AGENTS.md`'s "Testing" section
 states as universal, enforced by `ci.yaml` in both directions.
+
+## 2026-09-08: over-engineering sweep
+
+A repository-wide audit for unreachable code and single-implementation seams,
+verified with `deadcode ./cmd/garmin-mcp` (56 prod-unreachable functions before,
+44 after). What it removed:
+
+- The placeholder OS keyring: four build-tagged files whose every platform
+  reported unavailable, with no caller outside the package's own test. ADR 0005
+  is amended; the decision stands, the scaffolding is gone.
+- `Config.Clone` with `cloneClients` and `OAuthClient.clone` — no caller.
+- `ExportLegacyTokenFile` and `encodeLegacyDocument`: nothing writes a 0.3.x
+  document back out, so ADR 0004's contract is import-only now.
+- The inline-token override's bookkeeping. `FileStore` stored the flag and only
+  its own test read it back, while the sole production call site passed the
+  override unconditionally, so the gate enforced nothing. Remote mode refuses
+  inline material by construction instead: it keeps token sets in the database
+  and never builds the file store or reaches `importConfiguredTokens`.
+  `LooksLikeInlineTokenJSON` went with it — the composition root selects the
+  inline path by configuration key, not by sniffing the value.
+- `ratelimit.DefaultConfig` (no caller; its per-minute figures duplicated
+  `internal/config`'s operator defaults) and `mcplog.NewStderr` (no caller,
+  which left `New` as `newLogger`'s only caller, so the two are one function).
+- `ratelimit.Observer` became a func type: one method, one stateless
+  implementation.
+- `internal/cmd/sqlitetokens.go`, which duplicated `internal/tokenlink`
+  verbatim. `tokenlink` now takes the three-method `Backend` interface both
+  stores satisfy and serves stdio and remote alike.
+- `config.containsString`, a one-line wrapper on `slices.Contains`, and the
+  rune-slice copy in `containsWordPhrase`, which now scans bytes with
+  `strings.Index` and decodes only the two runes at a candidate match.
+
+**Deliberately not cut, so the next audit does not re-litigate it.** Prod
+unreachability alone is not evidence of dead code here:
+
+- `KnownEndpoints`, `KnownOps`, `KnownGraphQLFields`, `AllowedDomains`,
+  `Transitions`, `Transports` and `fieldNames` are exported for tests that
+  assert real invariants — label uniqueness, no URL-shaped labels, and in
+  `fieldNames`' case that every `Config` field is covered by redaction.
+  `KnownGraphQLFields` additionally backs the live suite's read guard.
+  Deleting the enumerator would delete the guard.
+- The `String`, `GoString`, `MarshalJSON` and `LogValue` methods on
+  secret-bearing types are unreachable *by design*: they close the `fmt`
+  badVerb depth-0 leak, and each has a leak test that strips the type's methods
+  with an alias.
+- The 228 result-model `LogValue` methods in `internal/tools` and
+  `internal/garmin/api` stay. They are reachable in the built binary, and they
+  are the redaction discipline `deps.go` documents.
+- Five `New*(rc *client.Client)` constructors in `internal/garmin/api` are
+  unreachable in production because the domain clients are reached through
+  `Wellness.Daily()` and the `New*From` accessors, but dozens of unit tests
+  construct through them, including their `nil` refusal checks. Cutting ~40
+  lines of constructor to add ~60 lines of test churn is not a win.
+- `client.SleeperFunc` is the standard func-adapter idiom and ten test files
+  use it. `auth.Clock` and `auth.Sleeper` stay separate from
+  `client.Sleeper`: the contracts differ (context-carrying versus not), and
+  merging them would change pacing semantics to save eight lines.
+- `viper` remains. It is the only removable direct dependency (it pulls twelve
+  indirect modules for file and environment reading that `os.Getenv` plus a
+  decoder would cover), but the four-layer precedence it backs is documented
+  and tested, and swapping the engine risks that behavior to shave a dependency
+  no operator sees. Recorded as an option, not as debt.
 
 ## 2026-09-08: redirect wildcards and the login allowlist landed
 
