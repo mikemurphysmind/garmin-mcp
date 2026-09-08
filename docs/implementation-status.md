@@ -1325,9 +1325,10 @@ source.
 
 ### Platform and environment limits
 
-- The OS keyring backends in `internal/cryptostore` are cgo-free **no-ops** that
-  report unavailable, which keeps `CGO_ENABLED=0` cross-compilation working per
-  ADR 0005. The owner-only key file is the only real backend.
+- There is no OS keyring backend. The owner-only key file is the only backend,
+  which keeps `CGO_ENABLED=0` cross-compilation working per ADR 0005. The
+  placeholder `keyring_*.go` no-ops that used to stand in for one are gone; a
+  real backend arrives with the ADR that adopts its dependency.
 - `internal/securefile` installs a completed temporary under its final name by
   hard-linking it into place (`link(2)`, which fails atomically with `EEXIST`
   when the name is taken), then removes the temporary either way. This needs a

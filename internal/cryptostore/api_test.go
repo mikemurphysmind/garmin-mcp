@@ -1,7 +1,6 @@
 package cryptostore
 
 import (
-	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -58,19 +57,4 @@ func exportedFuncNames(file *ast.File) []string {
 		names = append(names, fn.Name.Name)
 	}
 	return names
-}
-
-// TestKeyringBackendIsOptional records that the file backend is always
-// available: on every platform the keyring is a documented no-op today, so a
-// CGO_ENABLED=0 build keeps working.
-func TestKeyringBackendIsOptional(t *testing.T) {
-	if keyringAvailable() {
-		t.Fatal("no keyring backend is implemented yet, so keyringAvailable must report false")
-	}
-	if _, err := keyringLoad("garmin-mcp", 1); !errors.Is(err, errKeyringUnsupported) {
-		t.Fatalf("keyringLoad error = %v, want errKeyringUnsupported", err)
-	}
-	if keyringPlatform() == "" {
-		t.Fatal("keyringPlatform must name the platform it would use")
-	}
 }

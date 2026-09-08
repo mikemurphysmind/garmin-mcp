@@ -45,10 +45,12 @@ and nothing else.
   `TestStagedRotationReencryptsRecords`.
 - The key is never logged or printed: `Key` seals the raw bytes in a nested
   unexported struct whose render paths are all covered.
-- Optional OS keyring support lives in build-tagged files (`keyring_darwin.go`,
-  `keyring_linux.go`, `keyring_other.go`). All three are cgo-free **no-ops** that
-  report unavailable, which keeps `CGO_ENABLED=0` cross-compilation working. The
-  owner-only key file is the only real backend.
+- No OS keyring support. The owner-only key file is the only backend, which
+  keeps `CGO_ENABLED=0` cross-compilation working. Build-tagged placeholder
+  files (`keyring_darwin.go`, `keyring_linux.go`, `keyring_other.go`) reported
+  unavailable on every platform and were removed as dead scaffolding; the
+  decision above stands, and a real backend arrives with the ADR that adopts
+  either cgo or a D-Bus dependency.
 
 - **Start-up refusal on bad key material**, both halves. The lexical half is
   `Config.validateRemoteState`, which requires a database path and a master key

@@ -911,9 +911,9 @@ can read the database can read the key that opens it.
 
 Say this plainly to whoever accepts the risk. If the threat you care about is
 host compromise, this design does not address it, and no configuration of it
-does. There is no OS keyring backend: the keyring code is a placeholder that
-reports "unsupported" on every platform, and an unsupported keyring means "use
-the key file", never "start without encryption".
+does. There is no OS keyring backend and no keyring code: the owner-only key
+file is the only backend, and a future keyring must never mean "start without
+encryption".
 
 ## 5. Revocation and unlinking
 
