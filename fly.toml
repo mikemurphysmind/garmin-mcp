@@ -1,0 +1,55 @@
+app = "garmin-mcp-mikemurphysmind"
+primary_region = "iad"
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "deploy/fly/Dockerfile"
+
+[deploy]
+  strategy = "immediate"
+
+[env]
+  GARMIN_MCP_TRANSPORT = "streamable-http"
+  GARMIN_MCP_BIND_ADDRESS = "0.0.0.0:8080"
+  GARMIN_MCP_PUBLIC_URL = "https://garmin-mcp-mikemurphysmind.fly.dev/mcp"
+  GARMIN_MCP_STATE_DIR = "/data/garmin"
+  GARMIN_MCP_DATABASE_PATH = "/data/garmin/garmin.db"
+  GARMIN_MCP_MASTER_KEY_FILE = "/data/garmin/keys/key-v1.json"
+  GARMIN_MCP_TRUSTED_PROXY_CIDRS = "172.19.0.0/16"
+  GARMIN_MCP_ALLOW_INSECURE_HTTP = "false"
+  GARMIN_MCP_OAUTH_ALLOW_REDIRECT_WILDCARDS = "false"
+  GARMIN_MCP_LOG_FORMAT = "json"
+  GARMIN_MCP_LOG_LEVEL = "info"
+  # GARMIN_MCP_OAUTH_CLIENTS and GARMIN_MCP_LOGIN_ALLOWED_EMAILS are Fly secrets.
+
+[processes]
+  # Flags outrank environment variables, including accidentally staged secrets.
+  app = "serve --enable-write-tools=false --enable-destructive-tools=false"
+
+[mounts]
+  source = "garmin_data"
+  destination = "/data"
+  initial_size = "1gb"
+  snapshot_retention = 7
+  scheduled_snapshots = true
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/readyz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpus = 1

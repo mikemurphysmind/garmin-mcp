@@ -1,0 +1,28 @@
+name: Fly deployment checks
+
+on:
+  push:
+    branches: [fly-deploy]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fly-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the Fly image from this branch
+        run: docker build -f deploy/fly/Dockerfile -t garmin-mcp:fly-check .
+      - name: Verify persistence and security using synthetic state
+        run: python3 deploy/fly/smoke-test.py
+      - name: Validate helper syntax
+        run: |
+          sh -n deploy/fly/entrypoint.sh
+          python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("deploy/fly/configure-oauth.py").read_text())'

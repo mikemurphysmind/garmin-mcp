@@ -1,0 +1,17 @@
+# Allowlist the build context so local tokens, Git metadata, and databases
+# never leave this computer for a remote image builder.
+**
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!migrations/
+!migrations/**
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+!deploy/
+!deploy/fly/
+!deploy/fly/Dockerfile
+!deploy/fly/entrypoint.sh

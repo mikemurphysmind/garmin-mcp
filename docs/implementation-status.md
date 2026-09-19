@@ -8,7 +8,53 @@ Every stopping point updates this file in the same commit as the work it
 describes. Never mark an item done on the strength of a placeholder or
 `not implemented` handler.
 
-Last updated: 2026-09-08.
+Last updated: 2026-09-19 (Fly deployment fork only; upstream status follows).
+
+## 2026-09-18: personal Fly deployment branch
+
+Fork: `mikemurphysmind/garmin-mcp`; branch: `fly-deploy`; upstream baseline:
+`a944071`. `master` remains unchanged. No Garmin application code changed.
+See `deploy/fly/README.md` for configuration, secrets, rollout, verification,
+backup, and upstream-merge instructions. `fly.toml` selects a separate app,
+`iad`, one Machine (deploy with `--ha=false`), and a persistent `/data` volume.
+The Fly-specific entrypoint initializes a new private directory and drops to
+UID/GID 65532. Write and destructive tools are disabled by CLI flags.
+
+Validated locally: source-built container, Fly TOML schema, shell/Python syntax,
+readiness/liveness, OAuth discovery, unauthenticated MCP rejection, Origin
+rejection, nonroot process, owner-only database/key, missing-volume refusal,
+and persistence of the encryption key after container replacement. The OAuth
+helper was checked with synthetic input: no raw secret in Fly payload/output,
+and noninteractive input refused. Remote build validation passed `go vet ./...`,
+`go test -race -count=1 ./internal/config ./internal/cmd ./internal/mcpserver
+./internal/policy`, and `golangci-lint run` (0 issues). The full upstream release
+suite and live Garmin tests were not run; no application code changed.
+
+Deployed and verified over HTTPS: `/readyz`, OAuth discovery, unauthenticated MCP
+401 challenge, S256 authorization redirect with Secure/HttpOnly cookie, and plain
+PKCE refusal through an OAuth `invalid_request` redirect. One started Machine
+`84ed416fe34008` in `iad`, attached to encrypted volume `vol_491xky5g15869mor`.
+Fly readiness passes. Remote state/key directories are 0700 and database/key
+files are 0600, owned by 65532:65532. URL:
+`https://garmin-mcp-mikemurphysmind.fly.dev/mcp`.
+
+Only the synthetic `deployment-check` client is active; the allowlist is the
+reserved `pending-setup@example.invalid` address. Real Garmin login is blocked.
+Pending: ChatGPT's exact callback, interactive real-client/allowlist setup with
+`deploy/fly/configure-oauth.py`, apply staged secrets, and user-completed Garmin
+login/MFA/consent followed by an authenticated read-only MCP call. No real Garmin
+credentials used. User explicitly chose built-in Garmin OAuth over Google login.
+
+A branch-specific `Fly deployment checks` workflow builds the deployment image
+and runs `deploy/fly/smoke-test.py` with synthetic state. The original local
+smoke check passed; Docker Desktop later stalled on container creation, so Go
+validation used Fly's build-only path. Deployment and validation images are
+separate; the build-only toolchain image was not deployed.
+
+Google sign-in was discussed: current upstream has no external Google/OIDC
+identity integration, so Google Console credentials are not a configuration-only
+alternative. The deployment currently targets built-in OAuth.
+
 
 ## Phase status
 

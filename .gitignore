@@ -5,3 +5,16 @@
 dist/
 cover.out
 cover-fakegarmin.out
+
+# Local deployment state and secrets (never commit or send to a builder).
+.env
+.env.*
+/data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+**/key-v*.json
+**/active-key-version.json
+**/tokens/
+__pycache__/
