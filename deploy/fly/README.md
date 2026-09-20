@@ -209,8 +209,8 @@ add only that exact origin using `GARMIN_MCP_ALLOWED_ORIGINS`.
 
 The first real login reached Garmin's verification-code prompt, then ended with
 "Nothing here" immediately after submission. The Machine did not restart during
-that attempt. The web log records only a terminal login failure, so its cause is
-not yet established. Upstream's feasibility ADR records live tests without MFA;
+that attempt. The web log records only a terminal login failure. Upstream's
+feasibility ADR records live tests without MFA;
 its MFA continuation was covered with a fake Garmin service.
 
 An ignored local helper, `.private/diagnose-garmin-login.py`, prepares a private
@@ -218,10 +218,22 @@ terminal diagnostic using the already-deployed `auth --tty` command. It isolates
 all state in a temporary directory and removes it on exit, while using the same
 Fly egress and Garmin login implementation. It does not link ChatGPT. Share only
 the final redacted error/result; never share passwords, OTPs, tokens, or HTTP
-payloads. The local helper was preflighted without credentials. If terminal
-authentication succeeds, investigate the remote principal-binding/consent path;
-if it fails, use its classified operation, endpoint, and status to narrow the
-Garmin-side failure before changing application code.
+payloads. The user ran it and received `garmin verify_mfa
+[sso.portal.mfa.verify_code]: bot_challenge (status 403)`. This failure precedes
+token exchange and ChatGPT consent. The classifier labels every HTTP 403 as
+`bot_challenge`; it does not establish whether the cause is IP reputation,
+request/session handling, or another Garmin restriction. Only the final MFA
+endpoint error is reported, so the primary endpoint's result is unknown.
+
+The next comparison is `.private/diagnose-garmin-login-local.py`, backed by a Mac
+binary built from the same application source and dependency pins as Fly. It
+runs `auth --tty` locally with an empty environment, verifies the binary hash,
+and deletes its isolated temporary state on exit. Its real login result is
+pending. Success would narrow the issue to environment/network differences;
+the same failure would warrant investigating the MFA implementation. Neither
+diagnostic links ChatGPT. Token-file import exists only in stdio serving and
+does not bypass remote account linking. No application patch or live
+configuration change has been made for this HTTP 403.
 
 ## Storage, recovery, and updates
 

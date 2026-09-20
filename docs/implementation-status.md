@@ -10,6 +10,38 @@ describes. Never mark an item done on the strength of a placeholder or
 
 Last updated: 2026-09-19 (Fly deployment fork only; upstream status follows).
 
+## 2026-09-19: Fly MFA diagnostic returns HTTP 403
+
+The user ran the private terminal diagnostic on Fly. It reached the email OTP
+prompt, then reported `garmin verify_mfa [sso.portal.mfa.verify_code]:
+bot_challenge (status 403)`. This places the failure in Garmin MFA verification,
+before DI token exchange, remote principal binding, or ChatGPT consent. The
+diagnostic used temporary state and did not touch the production database.
+
+The classifier maps every HTTP 403 to `bot_challenge`, without inspecting the
+response body. This is not proof of an IP block, a CAPTCHA, or an incorrect code.
+The verifier tries the primary and alternate JSON endpoints but returns only
+the last non-definitive error; this result does not expose the first response.
+Do not change OAuth registration, idle-stop settings, or Garmin MFA based on it.
+
+The next comparison is an isolated local Mac `auth --tty` run using the same
+application source and dependency pins as the deployed image. Prepared ignored
+`.private/garmin-mcp-local` and `.private/diagnose-garmin-login-local.py` with
+temporary owner-only state, an empty subprocess environment, binary checksum
+verification, and cleanup on exit. The Go 1.27.0 Darwin arm64 toolchain was
+downloaded from go.dev and verified against its published SHA-256. Build and
+offline preflight passed: config/private-state initialization, expected refusal
+without a terminal, helper syntax, checksum verification, and temporary cleanup.
+The application source is unchanged from `a944071`. No account
+credentials were used while preparing the diagnostic. The user must run the
+interactive login privately; its result is pending. Local success would narrow
+the problem to environment/network differences, not prove an IP block by itself.
+
+Source inspection confirms that configured token import is called only by
+`runStdio`; it does not provide an account-linking shortcut for remote OAuth.
+No application code or live deployment configuration has changed. Real Garmin
+MFA and authenticated ChatGPT MCP reads remain unverified.
+
 ## 2026-09-19: real MFA login stops before consent
 
 The user reached Garmin's verification-code form and received the generic
