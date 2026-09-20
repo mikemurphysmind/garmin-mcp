@@ -9,10 +9,14 @@ The app is deployed, with one Machine configured to stop when idle and one
 encrypted volume. Public HTTPS discovery, unauthenticated rejection, and OAuth
 login initiation have been verified. Automatic idle shutdown and HTTP-triggered
 wake-up were also verified: the first `/readyz` request returned 200 in 2.24
-seconds, with the same volume and encryption key after restart. The deployed process is still using a synthetic client and a reserved
-`.invalid` account allowlist: **real Garmin logins are blocked**. The exact
-ChatGPT callback and the interactive real-account configuration below are the
-remaining setup steps. No Garmin account has been connected yet.
+seconds, with the same volume and encryption key after restart.
+
+The ChatGPT connection is now registered as client ID `chatgpt`, with a blank
+client secret (public PKCE S256 client). Its exact callback and the user's Garmin
+email allowlist are deployed through Fly secrets. A fresh authorization request
+successfully reaches the read-only disclosure page. In ChatGPT, retry Connect,
+continue to the Garmin sign-in, and complete login/MFA/consent. Successful Garmin
+linking and an authenticated MCP read have not yet been verified.
 
 Go vet, selected configuration/HTTP/OAuth/policy race tests, and lint passed.
 Container probes, private file modes, nonroot execution, and key persistence
@@ -87,6 +91,17 @@ Garmin MCP is its own OAuth 2.1 authorization server. It requires an explicitly
 registered client and PKCE S256. It has no dynamic client registration and no
 Google/OpenID Connect login integration. Google Console credentials alone do
 not enable Google login. Keep that separate from the Garmin account login.
+
+**Current connection:** use client ID `chatgpt` and leave the client secret blank.
+The public client is bound to the exact ChatGPT callback and mandatory PKCE S256;
+it does not permit anonymous Garmin data access. Garmin login and the account
+allowlist still apply. The current registry permits `garmin:read` and
+`offline_access`; server-side write/destructive tiers remain disabled.
+
+The helper described below is an alternative **confidential-client** setup that
+requires a client secret. Running it replaces the current registry and requires
+updating the ChatGPT connection to use that same secret. Keep the current public
+client unless deliberately making that change.
 
 Set these using Fly secrets, never checked-in configuration:
 
@@ -173,10 +188,11 @@ from unauthenticated `/mcp`. Check resource is the complete HTTPS `/mcp` URL,
 issuer is the bare HTTPS origin, scopes contain no Garmin write/destructive
 scope, and code-challenge methods include `S256`.
 
-In ChatGPT's custom MCP app setup, use the MCP URL, OAuth, client ID `chatgpt`,
-and your chosen client secret. Configure the displayed exact callback with the
-helper, deploy staged secrets, and retry Connect. Complete Garmin login/MFA and
-consent yourself. Then ask for `server_info` and check effective write and
+In the current ChatGPT connection, use the MCP URL, OAuth, client ID `chatgpt`,
+and a blank client secret. The exact callback and account allowlist are already
+deployed; retry Connect to start a fresh authorization. For a future confidential
+client configured with the helper, use its chosen secret instead. Complete Garmin
+login/MFA and consent yourself. Then ask for `server_info` and check effective write and
 destructive tiers are disabled, followed by one small read such as a recent
 activity or daily summary. Verify reconnect/refresh after the initial session.
 A healthy HTTP endpoint does not establish a completed Garmin authorization or

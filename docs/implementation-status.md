@@ -10,6 +10,30 @@ describes. Never mark an item done on the strength of a placeholder or
 
 Last updated: 2026-09-19 (Fly deployment fork only; upstream status follows).
 
+## 2026-09-19: ChatGPT OAuth client registered
+
+The user created the ChatGPT connection with client ID `chatgpt` and a blank
+client secret. Registered it as a public PKCE S256 client, with its exact observed
+ChatGPT callback, the HTTPS MCP resource, and allowed scopes `garmin:read` and
+`offline_access`. The callback is configured in Fly's client registry. Redirect
+wildcards remain disabled. The user entered their Garmin email privately through
+an ignored local helper; it replaced the synthetic account allowlist and deployed
+both secrets using the existing runtime image. No password or MFA was collected.
+
+Both Fly secrets report Deployed. A fresh synthetic authorization request using
+that client and exact callback returns HTTP 200 at `/login`, showing ChatGPT,
+`garmin:read`, and the correct callback/resource. The previous unregistered-client
+error is gone. The first page is a disclosure with a Continue button; the password
+form follows it. Real Garmin login, MFA/consent, token exchange, authenticated MCP
+reads, refresh, and reconnection are still pending user completion/verification.
+
+Current ChatGPT settings: client ID `chatgpt`, client secret blank. The checked-in
+`deploy/fly/configure-oauth.py` creates a confidential client and requires a secret;
+do not rerun it for this public-client connection unless intentionally switching
+both ends to confidential-client authentication. The one-time local helper
+`.private/register-chatgpt.py` is ignored and contains no account credentials.
+No application, container, storage, read-only, or idle-stop settings changed.
+
 ## 2026-09-19: reduce idle Fly cost
 
 `fly.toml` now selects automatic stop/start with zero minimum running Machines.
@@ -59,12 +83,11 @@ Fly readiness passes. Remote state/key directories are 0700 and database/key
 files are 0600, owned by 65532:65532. URL:
 `https://garmin-mcp-mikemurphysmind.fly.dev/mcp`.
 
-Only the synthetic `deployment-check` client is active; the allowlist is the
-reserved `pending-setup@example.invalid` address. Real Garmin login is blocked.
-Pending: ChatGPT's exact callback, interactive real-client/allowlist setup with
-`deploy/fly/configure-oauth.py`, apply staged secrets, and user-completed Garmin
-login/MFA/consent followed by an authenticated read-only MCP call. No real Garmin
-credentials used. User explicitly chose built-in Garmin OAuth over Google login.
+The initial rollout used a synthetic client and a reserved `.invalid` allowlist.
+Those have been replaced by the public ChatGPT client and user-entered account
+allowlist described above. User-completed Garmin login/MFA/consent and an
+authenticated read-only MCP call remain pending. The user explicitly chose
+built-in Garmin OAuth over Google login.
 
 A branch-specific `Fly deployment checks` workflow builds the deployment image
 and runs `deploy/fly/smoke-test.py` with synthetic state. The original local
