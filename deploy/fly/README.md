@@ -3,7 +3,7 @@
 This fork keeps upstream `master` unchanged. Fly deployment files live on
 `fly-deploy`. Inspected upstream commit: `a944071` (2026-09-18).
 
-## Current handoff status (2026-09-19)
+## Current handoff status (2026-09-20)
 
 The app is deployed, with one Machine configured to stop when idle and one
 encrypted volume. Public HTTPS discovery, unauthenticated rejection, and OAuth
@@ -21,7 +21,12 @@ linking and an authenticated MCP read have not yet been verified.
 Go vet, selected configuration/HTTP/OAuth/policy race tests, and lint passed.
 Container probes, private file modes, nonroot execution, and key persistence
 across replacement passed with synthetic local state. The Fly branch includes
-an automated container smoke check for future pushes. No application code changed.
+automated container and authentication regression checks for future pushes.
+The user approved a small
+upstream MFA cookie-handoff correction after the isolated candidate completed a
+real login on the Mac. That patch is now applied to `fly-deploy`; its tested Linux
+image is being deployed. The broader suite has one existing lactate-threshold
+test failure reproduced on the unchanged source; authentication tests pass.
 
 ## Deployment layout
 
@@ -35,7 +40,9 @@ an automated container smoke check for future pushes. No application code change
 - The entrypoint creates only a new state directory, then drops to UID/GID
   `65532:65532`. It refuses a missing mount or unexpected existing ownership/mode.
 - Both mutating tool tiers are disabled by command-line flags, which outrank
-  environment settings. No Garmin application source has been changed.
+  environment settings. The only Garmin application change is the approved MFA
+  cookie-handoff fix and safe debug endpoint/status diagnostics, with regression
+  tests in `internal/garmin/auth`.
 
 `Dockerfile` at the repository root remains the upstream runtime-only image.
 `deploy/fly/Dockerfile` builds the binary from source with the Go version in
@@ -246,9 +253,9 @@ smoke checks and is uploaded to the private Fly registry. The review and pinned
 image reference are in `.private/mfa-cookie-fix-review.md`. The wider test suite
 has one lactate-threshold test failure reproduced identically before and after
 the patch; auth tests, vet, lint, and container checks pass. Applying this upstream
-application correction and deploying the image await approval because the original
-scope allowed application changes only for Fly compatibility. No application patch
-has been applied to this deployment branch or deployed.
+application correction and deployment were approved on September 20. The reviewed
+patch is applied to this deployment branch; deployment and live verification are
+in progress. See `docs/implementation-status.md` for the current deployment result.
 Neither diagnostic links ChatGPT. Token-file import exists only in stdio serving
 and does not bypass remote account linking.
 

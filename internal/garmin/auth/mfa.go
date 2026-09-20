@@ -3,6 +3,7 @@ package auth
 import (
 	"cmp"
 	"context"
+	"log/slog"
 	"net/url"
 
 	"github.com/tamcore/garmin-mcp/internal/garmin/protocol"
@@ -49,7 +50,7 @@ func (a *Authenticator) beginMFA(principal string, strategy StrategyName, step s
 		MFAMethod:            method,
 		MFADeliveryUncertain: step.class.MFADeliveryUncertain() && !step.codeDelivered,
 		CSRFToken:            step.class.CSRFToken(),
-		Cookies:              step.session.cookiesFor(a.hosts.SSOBase()),
+		Cookies:              step.session.cookieSnapshot(a.hosts.SSOBase()),
 		Query:                step.query,
 		Referer:              step.referer,
 		ServiceURL:           step.serviceURL,
@@ -181,6 +182,12 @@ func (a *Authenticator) verifyJSONCode(
 		}
 
 		class := protocol.ClassifyMFAVerifyJSON(a.tokens.response(raw))
+		// Report each endpoint independently so a fallback does not hide the
+		// first result. Only closed labels and HTTP status are logged.
+		a.logger.DebugContext(ctx, "garmin MFA endpoint result",
+			slog.String("endpoint", target.endpoint.String()),
+			slog.Int("status", raw.status),
+			slog.String("outcome", class.Outcome().String()))
 		if class.Outcome() == protocol.OutcomeSuccess {
 			return class, nil
 		}

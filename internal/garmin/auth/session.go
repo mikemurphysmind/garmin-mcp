@@ -11,6 +11,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // Doer performs one HTTP request. It is the pluggable transport of the login
@@ -53,6 +54,9 @@ type rawResponse struct {
 type session struct {
 	doer Doer
 	jar  *cookiejar.Jar
+	// Keep Set-Cookie attributes for an MFA handoff. Jar.Cookies returns only
+	// cookies matching one request path and drops their original attributes.
+	cookieHistory map[string][]*http.Cookie
 }
 
 // newSession returns an empty session over doer.
@@ -61,7 +65,7 @@ func newSession(doer Doer) (*session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("garmin auth: create cookie jar: %w", err)
 	}
-	return &session{doer: doer, jar: jar}, nil
+	return &session{doer: doer, jar: jar, cookieHistory: make(map[string][]*http.Cookie)}, nil
 }
 
 // seed installs cookies for rawURL, so an MFA continuation resumes the SSO
@@ -78,14 +82,15 @@ func (s *session) seed(rawURL string, cookies []*http.Cookie) error {
 	return nil
 }
 
-// cookiesFor returns the cookies the jar holds for rawURL. Every value is a
-// credential.
-func (s *session) cookiesFor(rawURL string) []*http.Cookie {
+// cookieSnapshot returns the Set-Cookie history for one origin, including
+// path-scoped cookies and deletions. Replay through a fresh jar preserves its
+// normal domain, path, expiry and Secure checks. Every value is a credential.
+func (s *session) cookieSnapshot(rawURL string) []*http.Cookie {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return nil
 	}
-	return s.jar.Cookies(parsed)
+	return copyCookies(s.cookieHistory[parsed.Scheme+"://"+parsed.Host])
 }
 
 // get performs a GET.
@@ -149,8 +154,32 @@ func (s *session) do(
 
 	if cookies := resp.Cookies(); len(cookies) > 0 {
 		s.jar.SetCookies(req.URL, cookies)
+		origin := req.URL.Scheme + "://" + req.URL.Host
+		for _, cookie := range cookies {
+			s.cookieHistory[origin] = append(s.cookieHistory[origin], snapshotCookie(req.URL, cookie, time.Now()))
+		}
 	}
 	return rawResponse{status: resp.StatusCode, header: resp.Header.Clone(), body: read}, nil
+}
+
+// snapshotCookie resolves attributes relative to the original response, so
+// replay at the origin does not widen a default Path or restart Max-Age.
+func snapshotCookie(u *url.URL, cookie *http.Cookie, now time.Time) *http.Cookie {
+	cloned := *cookie
+	if cloned.Path == "" || !strings.HasPrefix(cloned.Path, "/") {
+		cloned.Path = "/"
+		if last := strings.LastIndex(u.Path, "/"); strings.HasPrefix(u.Path, "/") && last > 0 {
+			cloned.Path = u.Path[:last]
+		}
+	}
+	if cloned.MaxAge > 0 {
+		cloned.Expires = now.Add(time.Duration(cloned.MaxAge) * time.Second)
+		cloned.MaxAge = 0
+	}
+	// These copies of the wire header are not used by SetCookies. Dropping them
+	// avoids retaining uncounted, redundant secret material in Pending.
+	cloned.Raw, cloned.RawExpires, cloned.Unparsed = "", "", nil
+	return &cloned
 }
 
 // newRequest builds the request, copies header, attaches the jar's cookies and

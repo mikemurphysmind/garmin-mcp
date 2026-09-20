@@ -8,7 +8,38 @@ Every stopping point updates this file in the same commit as the work it
 describes. Never mark an item done on the strength of a placeholder or
 `not implemented` handler.
 
-Last updated: 2026-09-19 (Fly deployment fork only; upstream status follows).
+Last updated: 2026-09-20 (Fly deployment fork only; upstream status follows).
+
+## 2026-09-20: reviewed MFA fix approved and applied
+
+The user answered "continue" to the explicit request to apply the reviewed MFA
+fix and deploy the tested image. This authorizes the upstream application
+correction; no further approval is needed for the proposed deployment.
+
+Applied `.private/mfa-cookie-candidate.patch` to `fly-deploy` after verifying its
+SHA-256 against the prepared artifact metadata. The two application files and
+two regression-test files exactly match the source used for the tested Linux
+image. Cookie path/origin/expiry/Secure constraints survive the MFA handoff, and
+debug logs expose only closed endpoint/outcome labels and HTTP status. Upstream
+`master`, Garmin tool behavior, dependencies, Fly configuration, secrets, and
+storage schema remain unchanged.
+
+The candidate has already passed authentication/command race tests, lint, vet,
+and Linux container persistence/security checks, and completed a real portal
+login on the Mac. Authentication/command race tests, lint, and vet also pass on
+this checkout. The Fly branch workflow now runs those authentication regressions
+alongside its container check, so future upstream merges recheck this fix.
+Branch CI precedes deployment.
+The broader suite's pre-existing lactate-threshold test failure remains documented
+below. The approved deployment image is pinned to:
+
+`registry.fly.io/garmin-mcp-mikemurphysmind@sha256:965a4f57cb218e89586bf997b3c9248ceced10f3819f137b928246f4289702e2`
+
+Deployment and post-deploy verification are in progress. Before replacing the
+image, record the existing Machine, volume, encryption-key fingerprint, and
+private-state modes; after replacement verify those remain intact, check the
+health/OAuth endpoints and read-only flags, and start a fresh ChatGPT Connect
+flow. Live Garmin login from Fly and authenticated MCP reads are still pending.
 
 ## 2026-09-19: candidate completes local login; Fly image ready
 
