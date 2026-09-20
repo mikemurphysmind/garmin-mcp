@@ -56,8 +56,11 @@ Never regenerate or replace this key while retaining the database.
 traffic, then start that same Machine for the next request. Fly checks every
 few minutes; this is not a fixed idle timeout. Long-lived MCP connections or
 frequent requests can keep it running. Expect a short startup delay and let the
-client reconnect after an in-memory MCP session expires. SQLite, Garmin tokens,
-OAuth state, and encryption keys remain on the mounted volume across stops.
+client reconnect after an in-memory MCP session expires. Stored Garmin tokens,
+OAuth grants, and encryption keys remain on the mounted volume across stops.
+Browser login sessions and pending Garmin MFA continuations are in-memory;
+stopping the Machine invalidates an unfinished login. Start again with Connect
+in ChatGPT if a stop occurs during the browser flow.
 
 At the published `iad` rates checked on 2026-09-19, 512 MB shared CPU compute is
 about $3.19 per 30 days if continuously running. The 1 GB volume costs $0.15 per
@@ -201,6 +204,24 @@ a working ChatGPT connector; record those results separately.
 No CORS origins are configured: backend MCP calls with no Origin are allowed;
 unlisted browser origins are rejected. If a client actually sends an Origin,
 add only that exact origin using `GARMIN_MCP_ALLOWED_ORIGINS`.
+
+## Current MFA troubleshooting
+
+The first real login reached Garmin's verification-code prompt, then ended with
+"Nothing here" immediately after submission. The Machine did not restart during
+that attempt. The web log records only a terminal login failure, so its cause is
+not yet established. Upstream's feasibility ADR records live tests without MFA;
+its MFA continuation was covered with a fake Garmin service.
+
+An ignored local helper, `.private/diagnose-garmin-login.py`, prepares a private
+terminal diagnostic using the already-deployed `auth --tty` command. It isolates
+all state in a temporary directory and removes it on exit, while using the same
+Fly egress and Garmin login implementation. It does not link ChatGPT. Share only
+the final redacted error/result; never share passwords, OTPs, tokens, or HTTP
+payloads. The local helper was preflighted without credentials. If terminal
+authentication succeeds, investigate the remote principal-binding/consent path;
+if it fails, use its classified operation, endpoint, and status to narrow the
+Garmin-side failure before changing application code.
 
 ## Storage, recovery, and updates
 

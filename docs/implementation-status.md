@@ -10,6 +10,39 @@ describes. Never mark an item done on the strength of a placeholder or
 
 Last updated: 2026-09-19 (Fly deployment fork only; upstream status follows).
 
+## 2026-09-19: real MFA login stops before consent
+
+The user reached Garmin's verification-code form and received the generic
+"Nothing here" page immediately after submitting the code. Fly events and
+application logs show that the Machine remained running: Garmin requested an
+OTP at 00:35:33 UTC on September 20, then `the login could not continue` was
+logged at 00:36:09. A later attempt logged the generic credential-failure event.
+The allowlist was passed on the MFA attempt, and idle shutdown did not interrupt
+it. The web log event does not expose the underlying error; it must not be
+interpreted as proof of a wrong code, password, timeout, or a Garmin outage.
+
+`internal/loginweb/remoteflow.go` emits that terminal event when CompleteMFA
+returns anything other than the retryable MFA-rejection sentinel. The failure
+could be during verification, token exchange/session validation, or remote
+principal binding. The current upstream HEAD is still `a944071`; no MFA issues
+were returned by the repository issue search. The upstream feasibility ADR notes
+that its live test accounts did not have MFA enabled.
+
+Prepared ignored local `.private/diagnose-garmin-login.py`. It runs the existing
+`auth --tty` command over Fly SSH using an empty environment, a separate temporary
+state directory owned by UID 65532, and cleanup on exit. Its password and OTP
+prompts do not echo. It uses the same deployed binary and Fly egress but no
+production token/database/key files. It does not connect ChatGPT. A preflight
+verified config/store initialization and refusal without an attached terminal.
+The user has been asked to run it privately and share only the final result.
+No application code or deployment configuration changed. The real MFA cause and
+successful ChatGPT account linking remain unresolved.
+
+Correction to persistence assumptions: stored tokens, OAuth grants, and keys are
+persistent, but browser login sessions and pending Garmin MFA continuations are
+in-memory. An idle stop/restart can invalidate an unfinished login, although no
+restart occurred during the failed attempt described above.
+
 ## 2026-09-19: ChatGPT OAuth client registered
 
 The user created the ChatGPT connection with client ID `chatgpt` and a blank
