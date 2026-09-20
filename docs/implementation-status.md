@@ -10,6 +10,27 @@ describes. Never mark an item done on the strength of a placeholder or
 
 Last updated: 2026-09-19 (Fly deployment fork only; upstream status follows).
 
+## 2026-09-19: reduce idle Fly cost
+
+`fly.toml` now selects automatic stop/start with zero minimum running Machines.
+The existing single 512 MB Machine and 1 GB encrypted volume are retained.
+The server used about 37 MB RSS before any real Garmin account was connected;
+512 MB remains to allow headroom until authenticated workloads can be measured.
+The deployment README describes variable running-time costs, cold starts,
+client reconnection, and how to revert to always-on operation.
+
+Validated the Fly configuration and deployed it using the existing runtime
+image (no rebuild). The live Machine reports automatic stop/start enabled and
+minimum zero. Fly stopped it naturally with no HTTP traffic. The first subsequent
+`/readyz` request woke it and returned 200 in 2.24 seconds; OAuth metadata returned
+200 and unauthenticated `/mcp` still returned 401. The Machine ID, encrypted volume,
+and encryption-key fingerprint were unchanged across automatic shutdown/restart.
+It subsequently stopped itself again; Fly events identify the proxy as the stop
+source and report no OOM. No real Garmin account is connected yet, so authenticated
+client reconnection and peak memory still need verification during account setup.
+Prior Go vet, lint, and race-test results apply to the unchanged application source
+and runtime image. No application or OAuth settings changed.
+
 ## 2026-09-18: personal Fly deployment branch
 
 Fork: `mikemurphysmind/garmin-mcp`; branch: `fly-deploy`; upstream baseline:
@@ -32,7 +53,7 @@ suite and live Garmin tests were not run; no application code changed.
 
 Deployed and verified over HTTPS: `/readyz`, OAuth discovery, unauthenticated MCP
 401 challenge, S256 authorization redirect with Secure/HttpOnly cookie, and plain
-PKCE refusal through an OAuth `invalid_request` redirect. One started Machine
+PKCE refusal through an OAuth `invalid_request` redirect. One Machine
 `84ed416fe34008` in `iad`, attached to encrypted volume `vol_491xky5g15869mor`.
 Fly readiness passes. Remote state/key directories are 0700 and database/key
 files are 0600, owned by 65532:65532. URL:
