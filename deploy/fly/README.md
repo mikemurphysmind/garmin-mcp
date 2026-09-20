@@ -225,15 +225,21 @@ token exchange and ChatGPT consent. The classifier labels every HTTP 403 as
 request/session handling, or another Garmin restriction. Only the final MFA
 endpoint error is reported, so the primary endpoint's result is unknown.
 
-The next comparison is `.private/diagnose-garmin-login-local.py`, backed by a Mac
+The comparison `.private/diagnose-garmin-login-local.py` is backed by a Mac
 binary built from the same application source and dependency pins as Fly. It
 runs `auth --tty` locally with an empty environment, verifies the binary hash,
-and deletes its isolated temporary state on exit. Its real login result is
-pending. Success would narrow the issue to environment/network differences;
-the same failure would warrant investigating the MFA implementation. Neither
-diagnostic links ChatGPT. Token-file import exists only in stdio serving and
-does not bypass remote account linking. No application patch or live
-configuration change has been made for this HTTP 403.
+and deletes its isolated temporary state on exit. The user's local run also
+failed at MFA, with `unknown (status 409)` from the portal verify endpoint.
+
+An offline regression now demonstrates that the app loses path-scoped SSO
+cookies between login and MFA. An isolated candidate preserves their attributes
+and passes the regression plus authentication tests. The ignored helper
+`.private/diagnose-garmin-mfa-candidate.py` runs this candidate locally with
+temporary state and safe endpoint/status diagnostics. Its live result is pending;
+the cookie defect has not yet been connected conclusively to the user's failure.
+No application patch has been applied to this deployment branch or deployed.
+Neither diagnostic links ChatGPT. Token-file import exists only in stdio serving
+and does not bypass remote account linking.
 
 ## Storage, recovery, and updates
 

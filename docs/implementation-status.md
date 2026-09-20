@@ -10,6 +10,49 @@ describes. Never mark an item done on the strength of a placeholder or
 
 Last updated: 2026-09-19 (Fly deployment fork only; upstream status follows).
 
+## 2026-09-19: local MFA returns 409; isolated cookie fix prepared
+
+The user ran the same-source Mac diagnostic and reached the email OTP prompt.
+After submitting the new code it returned `garmin verify_mfa
+[sso.portal.mfa.verify_code]: unknown (status 409)`. Both Fly and Mac therefore
+fail during MFA, although their final HTTP statuses differ (403 versus 409).
+This does not establish the meaning of Garmin's 409 or the primary endpoint's
+response. Do not assume an incorrect code, expired session, or Fly-only block.
+
+Source inspection found a reproducible cookie-handoff defect: `beginMFA` calls
+`Jar.Cookies` for the SSO root URL. That excludes cookies scoped to `/mobile`,
+`/mobile/api`, or other login paths, and the returned request cookies do not
+preserve original attributes. A new fake-Garmin regression in an ignored source
+copy passes for a root cookie and fails for `/mobile` and `/mobile/api` cookies
+against the unchanged application. This proves the code defect, not that the
+user's actual login response used those cookies. No authenticated HTTP payloads
+or cookie values have been captured. An anonymous portal-page GET returned 403
+and disclosed only a root-scoped cookie, so it cannot establish that link either.
+
+Prepared an isolated candidate under `.private/mfa-investigation`, based on the
+deployment source. It preserves the original Set-Cookie history per origin,
+resolves default paths and Max-Age before the handoff, and replays that history
+through the standard cookie jar. Scope, Secure, expiry, deletion, copying, and
+cross-origin behavior have synthetic checks. The pending-state size limit and
+existing credential redaction remain in place. The candidate also emits debug
+MFA endpoint/outcome/status labels only, so a later fallback cannot hide the
+primary endpoint's result. It logs no body, cookie, password, OTP, or account.
+
+Validation: regression fails before the fix and passes after; `go test -race
+-count=1 -tags=fakegarmin ./internal/garmin/auth ./internal/cmd`, `go vet ./...`,
+and targeted golangci-lint 2.13.1 all pass. The Mac candidate binary and ignored
+`.private/diagnose-garmin-mfa-candidate.py` pass offline startup, private-state,
+checksum, terminal-refusal, syntax, and cleanup checks. This helper uses one
+interactive local login and deletes temporary tokens/keys afterward. Real login
+with the candidate is still pending. Baseline `.private/garmin-mcp-local` remains
+available; the candidate is `.private/garmin-mcp-mfa-candidate`.
+
+The user's original scope limits application changes to Fly compatibility.
+Accordingly, the candidate and review patch `.private/mfa-cookie-candidate.patch`
+are private experiments only: no Go changes were applied to `fly-deploy`, pushed,
+or deployed. OAuth, read-only policy, Machine size, volume, and idle-stop settings
+are unchanged. ChatGPT linking remains incomplete.
+
 ## 2026-09-19: Fly MFA diagnostic returns HTTP 403
 
 The user ran the private terminal diagnostic on Fly. It reached the email OTP
