@@ -29,17 +29,34 @@ and Linux container persistence/security checks, and completed a real portal
 login on the Mac. Authentication/command race tests, lint, and vet also pass on
 this checkout. The Fly branch workflow now runs those authentication regressions
 alongside its container check, so future upstream merges recheck this fix.
-Branch CI precedes deployment.
+Branch CI passed: run `35529529374`, including the new auth job and the container
+security/persistence check. The fix is committed as `740d3c2` on `fly-deploy`.
 The broader suite's pre-existing lactate-threshold test failure remains documented
 below. The approved deployment image is pinned to:
 
 `registry.fly.io/garmin-mcp-mikemurphysmind@sha256:965a4f57cb218e89586bf997b3c9248ceced10f3819f137b928246f4289702e2`
 
-Deployment and post-deploy verification are in progress. Before replacing the
-image, record the existing Machine, volume, encryption-key fingerprint, and
-private-state modes; after replacement verify those remain intact, check the
-health/OAuth endpoints and read-only flags, and start a fresh ChatGPT Connect
-flow. Live Garmin login from Fly and authenticated MCP reads are still pending.
+Deployed this exact digest successfully using the existing configuration,
+`--ha=false`, and the immediate strategy. The existing Machine `84ed416fe34008`
+now runs the prepared Linux amd64 image. Post-deploy verification confirms the
+same volume, encryption-key fingerprint, 0700 directories/0600 files owned by
+65532, 512 MB allocation, and both write/destructive CLI flags disabled. Automatic
+stop/start remains enabled with zero minimum Machines. No secrets were changed.
+
+Live checks: `/readyz` and `/livez` return 200; unauthenticated `/mcp` returns 401
+with its resource-metadata challenge; OAuth discovery returns 200 with PKCE S256.
+The real ChatGPT client advertises `garmin:read` and `offline_access` (the latter
+is for refresh grants, not Garmin writes). A fresh synthetic authorization using
+the registered ChatGPT callback reaches the disclosure page with HTTP 200 and
+no unregistered-client error. No Garmin credentials were submitted by these
+checks. The runtime version remains `mfa-cookie-candidate`, because this is the
+exact image tested before approval rather than a rebuilt image with a new label.
+
+The user has been asked to start a fresh ChatGPT Connect attempt with client ID
+`chatgpt` and a blank secret. Live Garmin login from Fly, the final ChatGPT OAuth
+consent/token exchange, and authenticated MCP reads remain pending their result.
+Do not reuse old sign-in transaction URLs. Local diagnostic tokens were deleted
+and did not link this remote account.
 
 ## 2026-09-19: candidate completes local login; Fly image ready
 

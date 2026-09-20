@@ -24,8 +24,9 @@ across replacement passed with synthetic local state. The Fly branch includes
 automated container and authentication regression checks for future pushes.
 The user approved a small
 upstream MFA cookie-handoff correction after the isolated candidate completed a
-real login on the Mac. That patch is now applied to `fly-deploy`; its tested Linux
-image is being deployed. The broader suite has one existing lactate-threshold
+real login on the Mac. That patch is now applied to `fly-deploy` and deployed on
+Fly using the tested Linux image. Post-deploy health, OAuth initiation, persistent
+state, encryption-key, and read-only checks passed. The broader suite has one existing lactate-threshold
 test failure reproduced on the unchanged source; authentication tests pass.
 
 ## Deployment layout
@@ -254,8 +255,11 @@ image reference are in `.private/mfa-cookie-fix-review.md`. The wider test suite
 has one lactate-threshold test failure reproduced identically before and after
 the patch; auth tests, vet, lint, and container checks pass. Applying this upstream
 application correction and deployment were approved on September 20. The reviewed
-patch is applied to this deployment branch; deployment and live verification are
-in progress. See `docs/implementation-status.md` for the current deployment result.
+patch is committed as `740d3c2` on this deployment branch and deployed. Both branch
+CI jobs passed, as did post-deploy endpoint, OAuth initiation, state-persistence,
+and read-only checks. A fresh ChatGPT sign-in remains necessary to verify real
+Garmin MFA from Fly and authenticated MCP calls. See `docs/implementation-status.md`
+for the current deployment result.
 Neither diagnostic links ChatGPT. Token-file import exists only in stdio serving
 and does not bypass remote account linking.
 
