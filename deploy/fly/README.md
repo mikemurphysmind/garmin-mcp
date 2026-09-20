@@ -235,9 +235,20 @@ An offline regression now demonstrates that the app loses path-scoped SSO
 cookies between login and MFA. An isolated candidate preserves their attributes
 and passes the regression plus authentication tests. The ignored helper
 `.private/diagnose-garmin-mfa-candidate.py` runs this candidate locally with
-temporary state and safe endpoint/status diagnostics. Its live result is pending;
-the cookie defect has not yet been connected conclusively to the user's failure.
-No application patch has been applied to this deployment branch or deployed.
+temporary state and safe endpoint/status diagnostics. The candidate completed a
+real Mac login through the portal flow: MFA returned 200 and account linking
+completed. Mobile login was rate-limited and widget login could not continue
+on that attempt, so this was not a controlled comparison of identical live flows.
+The helper removed the temporary tokens afterward.
+
+The Linux amd64 candidate image also passes the container persistence/security
+smoke checks and is uploaded to the private Fly registry. The review and pinned
+image reference are in `.private/mfa-cookie-fix-review.md`. The wider test suite
+has one lactate-threshold test failure reproduced identically before and after
+the patch; auth tests, vet, lint, and container checks pass. Applying this upstream
+application correction and deploying the image await approval because the original
+scope allowed application changes only for Fly compatibility. No application patch
+has been applied to this deployment branch or deployed.
 Neither diagnostic links ChatGPT. Token-file import exists only in stdio serving
 and does not bypass remote account linking.
 

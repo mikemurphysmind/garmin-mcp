@@ -10,6 +10,49 @@ describes. Never mark an item done on the strength of a placeholder or
 
 Last updated: 2026-09-19 (Fly deployment fork only; upstream status follows).
 
+## 2026-09-19: candidate completes local login; Fly image ready
+
+The user ran the baseline Mac helper again and received the same portal MFA 409.
+The candidate then succeeded: mobile login returned 429, widget login returned
+302, and the portal flow requested an OTP. At 21:24:20 EDT, portal MFA returned
+HTTP 200/success and the CLI reported the account linked. Token exchange,
+account validation, and encrypted local persistence therefore completed; the
+helper then removed its temporary state. ChatGPT is not linked by this test.
+The successful run used a different login strategy than earlier attempts may
+have used, so it supports the fix without proving a controlled live A/B result.
+
+Added a fake-Garmin regression for portal MFA after mobile/widget fallback; it
+passes. The candidate runtime change remains the cookie-preserving handoff plus
+safe debug endpoint/status/outcome records. Configured lint, Go vet, and the
+authentication/command race tests pass. The full race/fake-Garmin suite reports
+one existing failure in `TestGetLactateThresholdReturnsTheLatestReading`, expecting
+`functional_threshold_power_watts`. A targeted rerun fails identically on the
+unchanged deployment source and the candidate. Do not describe the full suite as
+green or silently patch that unrelated tool.
+
+Built and smoke-tested the Linux amd64 image: readiness/liveness, OAuth metadata,
+401 challenge, Origin rejection, nonroot UID, private state, encryption-key
+persistence across replacement, missing-volume refusal, and missing-allowlist
+refusal all pass. Pushed the image to the app's private registry without deploying:
+
+`registry.fly.io/garmin-mcp-mikemurphysmind@sha256:965a4f57cb218e89586bf997b3c9248ceced10f3819f137b928246f4289702e2`
+
+Its tag is `mfa-cookie-a5f381b44455`; `.private/mfa-candidate-artifact.json` records
+the image and patch hashes. `.private/mfa-cookie-fix-review.md` describes the
+concrete proposal and validation. The patch is still ignored and unapplied to
+`fly-deploy`. Applying/pushing the upstream MFA correction and deploying this
+image awaits the user's answer to the approval question: their initial scope
+limited application-code changes to Fly compatibility. Do not treat the local
+test or image upload as deployment approval. On approval, apply the reviewed
+patch, commit it with this status updated, wait for CI, then deploy the pinned
+image with the existing Fly configuration and `--ha=false`.
+
+The existing Machine `84ed416fe34008` is stopped through idle-stop and still uses
+the original `deployment-01M2VHQAZ2H2FAS0HXBSQYVTHT` image. Its 512 MB allocation,
+volume, OAuth registration, and read-only flags are unchanged. After a deployment,
+the next end-to-end verification is a fresh ChatGPT Connect flow; success from
+Fly, OAuth consent/token exchange, and authenticated MCP reads remain pending.
+
 ## 2026-09-19: local MFA returns 409; isolated cookie fix prepared
 
 The user ran the same-source Mac diagnostic and reached the email OTP prompt.
